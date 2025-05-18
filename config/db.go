@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"linn221/shop/models"
 	"log"
 	"os"
 	"path/filepath"
@@ -55,6 +56,10 @@ func connectDatabase() *gorm.DB {
 
 	if err != nil {
 		panic("Fail To Connect Database")
+	}
+	err = db.AutoMigrate(&models.Shop{}, &models.User{})
+	if err != nil {
+		panic("Error migrating: " + err.Error())
 	}
 	return db
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-playground/validator"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
@@ -26,9 +27,11 @@ func main() {
 	var db *gorm.DB
 	cacheService = config.ConnectRedis(ctx)
 	db = config.ConnectDB()
+	validate := validator.New()
 	container := &services.Container{
-		DB:    db,
-		Cache: cacheService,
+		DB:       db,
+		Cache:    cacheService,
+		Validate: validate,
 	}
 
 	mux := myRouter(container)

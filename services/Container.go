@@ -1,8 +1,12 @@
 package services
 
-import "gorm.io/gorm"
+import (
+	"github.com/go-playground/validator"
+	"gorm.io/gorm"
+)
 
 type Container struct {
-	DB    *gorm.DB
-	Cache CacheService
+	DB       *gorm.DB
+	Cache    CacheService
+	Validate *validator.Validate
 }

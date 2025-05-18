@@ -48,19 +48,16 @@ func (m *SessionMiddleware) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-func extractIdsFromCache(s string) (int, int, error) {
+func extractIdsFromCache(s string) (int, string, error) {
 	ss := strings.Split(s, ":")
 	if len(ss) != 2 {
-		return 0, 0, errors.New("error splitting the ids")
+		return 0, "", errors.New("error splitting the ids")
 	}
 	userId, err := strconv.Atoi(ss[0])
 	if err != nil {
-		return 0, 0, err
+		return 0, "", err
 	}
-	shopId, err := strconv.Atoi(ss[1])
-	if err != nil {
-		return 0, 0, err
-	}
+	shopId := ss[1]
 
 	return userId, shopId, nil
 }

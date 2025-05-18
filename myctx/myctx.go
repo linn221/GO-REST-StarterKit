@@ -14,20 +14,20 @@ const (
 	isAuth    myContextKey = "isAuth"
 )
 
-func GetIdsFromContext(ctx context.Context) (int, int, error) {
+func GetIdsFromContext(ctx context.Context) (int, string, error) {
 	userId, ok := ctx.Value(userIdKey).(int)
 	if !ok {
-		return 0, 0, errors.New("userId is required")
+		return 0, "", errors.New("userId is required")
 	}
-	shopId, ok := ctx.Value(shopIdKey).(int)
+	shopId, ok := ctx.Value(shopIdKey).(string)
 	if !ok {
-		return 0, 0, errors.New("shopId is required")
+		return 0, "", errors.New("shopId is required")
 	}
 
 	return userId, shopId, nil
 }
 
-func SetIds(ctx context.Context, userId, shopId int) context.Context {
+func SetIds(ctx context.Context, userId int, shopId string) context.Context {
 	ctx = context.WithValue(ctx, userIdKey, userId)
 	ctx = context.WithValue(ctx, shopIdKey, shopId)
 	return ctx

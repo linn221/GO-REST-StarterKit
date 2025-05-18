@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type ResourceHandlerFunc func(http.ResponseWriter, *http.Request, int, int, int, *gorm.DB, services.CacheService) error
+type ResourceHandlerFunc func(http.ResponseWriter, *http.Request, int, string, int, *gorm.DB, services.CacheService) error
 
 func ResourceH(container *services.Container, h ResourceHandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
