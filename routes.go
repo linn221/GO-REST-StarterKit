@@ -13,6 +13,7 @@ func myRouter(container *services.Container) *http.ServeMux {
 	authMux := http.NewServeMux()
 	authMux.Handle("GET /me", handlers.DefaultH(container, handlers.Me))
 	authMux.HandleFunc("POST /change-password", handlers.WithInput(container, handlers.ChangePassword))
+	authMux.HandleFunc("POST /update-profile", handlers.WithInput(container, handlers.UpdateUserInfo))
 	mainMux.HandleFunc("POST /register", handlers.Register(container))
 	mainMux.HandleFunc("POST /login", handlers.Login(container))
 	mainMux.Handle("/api/", http.StripPrefix("/api", middlewares.Auth(authMux)))
