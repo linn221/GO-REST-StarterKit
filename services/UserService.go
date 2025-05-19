@@ -30,7 +30,11 @@ func systemErr(err error) *ServiceError {
 		Code: http.StatusInternalServerError,
 	}
 }
-func systemErrString(s string) *ServiceError {
+func systemErrString(s string, args ...error) *ServiceError {
+	if len(args) > 0 {
+		err := args[0]
+		return systemErr(errors.New(s + ": " + err.Error()))
+	}
 	return systemErr(errors.New(s))
 }
 func clientErr(s string) *ServiceError {
