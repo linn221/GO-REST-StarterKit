@@ -67,18 +67,24 @@ func (s *userService) ChangePassword(id int, oldPasword string, newPassword stri
 	return nil
 }
 
-func (s *userService) UpdateInfo(id int, name string, username string, email string, phoneNo *string, db *gorm.DB, cache CacheService) *ServiceError {
+func (s *userService) UpdateInfo(id int, username string, email string, phoneNo *string, db *gorm.DB, cache CacheService) *ServiceError {
 	user, errs := s.GetUser(id, db, cache)
 	if errs != nil {
 		return errs
 	}
 	updates := map[string]any{
-		"Name":     name,
 		"Username": username,
 		"Email":    email,
 	}
 	if phoneNo != nil {
 		updates["PhoneNo"] = *phoneNo
+	}
+	if err := Validate(db,
+		NewUniqueRule("users", "username", username, id, "duplicate username"),
+		NewUniqueRule("users", "email", email, id, "duplicate email"),
+		NewUniqueRule("users", "phone_no", phoneNo, id, "duplicate phone number").When(phoneNo != nil),
+	); err != nil {
+		return err
 	}
 	if err := db.Model(&user).Updates(updates).Error; err != nil {
 		return systemErr(err)
