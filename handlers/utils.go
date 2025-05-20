@@ -11,7 +11,7 @@ import (
 
 // will parse the request, if found errors, will write to the response
 // instance, continue, internalError
-func parseJson[T any](w http.ResponseWriter, r *http.Request, validate *validator.Validate) (*T, bool, error) {
+func parseJsonOld[T any](w http.ResponseWriter, r *http.Request, validate *validator.Validate) (*T, bool, error) {
 	var v T
 	err := json.NewDecoder(r.Body).Decode(&v)
 	if err != nil {
@@ -71,7 +71,7 @@ func respondNoContent(w http.ResponseWriter) {
 // will parse the request, if found errors, will write to the response
 // instance, continue, internalError
 
-func parseJson2[T any](w http.ResponseWriter, r *http.Request) (*T, bool, error) {
+func parseJson[T any](w http.ResponseWriter, r *http.Request) (*T, bool, error) {
 	var v T
 	err := json.NewDecoder(r.Body).Decode(&v)
 	if err != nil {

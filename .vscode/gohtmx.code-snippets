@@ -162,7 +162,7 @@
 		],
 		"description": "Log output to console"
 	},
-		"new snippettt": {
+		"new snippsettt": {
 			"prefix": "ison",
 			"body": [
 		"`json:\"$1\" validate:\"$0\"`"

@@ -16,7 +16,7 @@ type LoginInfo struct {
 
 func Login(container *services.Container) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		login, ok, err := parseJson[LoginInfo](w, r, container.Validate)
+		login, ok, err := parseJsonOld[LoginInfo](w, r, container.Validate)
 		if !ok {
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)

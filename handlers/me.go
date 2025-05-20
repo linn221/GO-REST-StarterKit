@@ -15,7 +15,7 @@ type MyInfo struct {
 
 func Me(userService services.UserCruder) http.HandlerFunc {
 
-	return DefaultHandler(func(ds *DefaultSession, w http.ResponseWriter, r *http.Request) error {
+	return DefaultHandler(func(w http.ResponseWriter, r *http.Request, ds *DefaultSession) error {
 		user, errs := userService.GetUser(r.Context(), ds.UserId)
 		if errs != nil {
 			return errs.Respond(w)

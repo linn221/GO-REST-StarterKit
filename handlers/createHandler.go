@@ -11,7 +11,9 @@ type CreateSession[T any] struct {
 	Input  *T
 }
 
-func CreateHandler[T any](handle func(http.ResponseWriter, *http.Request, *CreateSession[T]) error) http.HandlerFunc {
+type CreateFunc[T any] func(http.ResponseWriter, *http.Request, *CreateSession[T]) error
+
+func CreateHandler[T any](handle CreateFunc[T]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -21,7 +23,7 @@ func CreateHandler[T any](handle func(http.ResponseWriter, *http.Request, *Creat
 			return
 		}
 
-		input, ok, err := parseJson2[T](w, r)
+		input, ok, err := parseJson[T](w, r)
 		if !ok {
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)

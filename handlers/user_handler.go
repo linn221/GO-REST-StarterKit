@@ -11,7 +11,7 @@ type NewPassword struct {
 }
 
 func ChangePassword(userSerivce services.UserCruder) http.HandlerFunc {
-	return InputHandler[NewPassword](func(ds *DefaultSession, np *NewPassword, w http.ResponseWriter, r *http.Request) error {
+	return InputHandler(func(w http.ResponseWriter, r *http.Request, ds *DefaultSession, np *NewPassword) error {
 		errs := userSerivce.ChangePassword(r.Context(), ds.UserId, np.OldPassword, np.NewPassword)
 		if errs != nil {
 			errs.Respond(w)
@@ -28,7 +28,7 @@ type NewUserEdit struct {
 }
 
 func UpdateUserInfo(userSerivce services.UserCruder) http.HandlerFunc {
-	return InputHandler[NewUserEdit](func(ds *DefaultSession, t *NewUserEdit, w http.ResponseWriter, r *http.Request) error {
+	return InputHandler(func(w http.ResponseWriter, r *http.Request, ds *DefaultSession, t *NewUserEdit) error {
 		errs := userSerivce.UpdateInfo(r.Context(), ds.UserId, string(t.Username), string(t.Email), t.PhoneNo.StringPtr())
 		if errs != nil {
 			return errs.Respond(w)

@@ -27,7 +27,7 @@ func Register(container *services.Container) http.HandlerFunc {
 		// if err != nil {
 		// 	http.Error(w, err.Error(), http.StatusInternalServerError)
 		// }
-		input, ok, finalErr := parseJson[NewShop](w, r, container.Validate)
+		input, ok, finalErr := parseJsonOld[NewShop](w, r, container.Validate)
 		if !ok {
 			if finalErr != nil {
 				http.Error(w, finalErr.Error(), http.StatusInternalServerError)
