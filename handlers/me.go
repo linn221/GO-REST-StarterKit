@@ -3,8 +3,6 @@ package handlers
 import (
 	"linn221/shop/services"
 	"net/http"
-
-	"gorm.io/gorm"
 )
 
 type MyInfo struct {
@@ -15,18 +13,19 @@ type MyInfo struct {
 	PhoneNo  string `json:"phone_no"`
 }
 
-func Me(w http.ResponseWriter, r *http.Request, userId int, shopId string, db *gorm.DB, cache services.CacheService) error {
+func Me(userService services.UserCruder) http.HandlerFunc {
 
-	user, errs := services.UserService.GetUser(userId, db, cache)
-	if errs != nil {
-		return errs.Respond(w)
-	}
-
-	return respondOk(w, MyInfo{
-		Id:       userId,
-		ShopId:   shopId,
-		Username: user.Username,
-		Email:    user.Email,
-		PhoneNo:  user.PhoneNo,
+	return DefaultHandler(func(ds *DefaultSession, w http.ResponseWriter, r *http.Request) error {
+		user, errs := userService.GetUser(r.Context(), ds.UserId)
+		if errs != nil {
+			return errs.Respond(w)
+		}
+		return respondOk(w, MyInfo{
+			Id:       ds.UserId,
+			ShopId:   ds.ShopId,
+			Username: user.Username,
+			Email:    user.Email,
+			PhoneNo:  user.PhoneNo,
+		})
 	})
 }

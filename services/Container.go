@@ -6,7 +6,12 @@ import (
 )
 
 type Container struct {
-	DB       *gorm.DB
-	Cache    CacheService
+	DB         *gorm.DB
+	Cache      CacheService
+	Validate   *validator.Validate
+	MyServices *Instance
+}
+
+type App struct {
 	Validate *validator.Validate
 }

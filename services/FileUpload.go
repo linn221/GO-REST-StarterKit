@@ -1,16 +1,20 @@
 package services
 
 import (
-	"fmt"
+	"io"
+	"linn221/shop/models"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
-var _UPLOAD_DIR string
-
 // detectFileType reads the first 512 bytes and detects the MIME type
-func detectFileType(FileHeader multipart.FileHeader) (string, *ServiceError) {
+func detectFileType(FileHeader *multipart.FileHeader) (string, *ServiceError) {
 	file, err := FileHeader.Open()
 
 	if err != nil {
@@ -44,53 +48,128 @@ func detectFileType(FileHeader multipart.FileHeader) (string, *ServiceError) {
 	case "image/x-icon":
 		ext = "ico"
 	default:
-		return "", clientErr(fmt.Sprintf("unsupported file type: %s", contentType))
+		return "", clientErr("unsupported file type: " + contentType)
 	}
 	return ext, nil
 }
 
-func UploadImageFile(_, fileHeader *multipart.FileHeader, id int) (string, string, *ServiceError) {
-
-	// filename := filepath.Base(file.Filename)
-	// buffer := make([]byte, 512)
-	// _, err := file.Read(buffer)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	if fileHeader == nil {
-		panic("fileHeader is nil")
-	}
-
-	ext, errs := detectFileType(*fileHeader)
-	if errs != nil {
-		return "", "", errs
-	}
-	fileName := fmt.Sprintf("%d.%s", id, ext)
-	// filePath := filepath.Join(_UPLOAD_DIR, fileName)
-	//upload part
-	// if err := c.SaveUploadedFile(fileHeader, filePath); err != nil {
-	// 	return "", "", myerror.NewWithMessage("error saving uploaded file", err)
-	// }
-	return fileName, ext, nil
-}
-
-// func DeleteImageFile(imgId int, ext string) *myerror.ServiceError {
+// func DeleteImageFile(uri string) error {
 // 	// Construct the absolute path to the image file
-// 	imagePath := filepath.Join(_UPLOAD_DIR, fmt.Sprintf("%d.%s", imgId, ext))
+// 	imagePath := filepath.Join(_UPLOAD_DIR, uri)
 
 // 	// Ensure the file exists before attempting to delete it
 // 	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
-// 		return &myerror.ServiceError{
-// 			Err:        err,
-// 			Message:    "file not found",
-// 			StatusCode: http.StatusNotFound,
-// 		}
+// 		return errors.New("file not found")
 // 	}
 
 // 	// Delete the file securely
 // 	if err := os.Remove(imagePath); err != nil {
-// 		return systemErrString("failed to delete file", err)
+// 		return err
 // 	}
 
 // 	return nil
 // }
+
+type ImageUploader interface {
+	UploadSingle(r *http.Request, key string) (string, *ServiceError)
+	UploadMultiple(r *http.Request, key string) ([]string, *ServiceError)
+}
+
+type ImageUploadService struct {
+	dir         string
+	db          *gorm.DB
+	maxMemoryMB int64 // default should be 10
+}
+
+func (service *ImageUploadService) UploadSingle(r *http.Request, formInputKey string) (string, *ServiceError) {
+	// Limit upload size to 10MB
+	r.ParseMultipartForm(service.maxMemoryMB << 20) // 10MB
+
+	file, header, err := r.FormFile(formInputKey)
+	if err != nil {
+		return "", clientErr("Failed to read form file")
+	}
+	if header == nil {
+		return "", clientErr("Fileheader is nil")
+	}
+
+	defer file.Close()
+
+	ext, errs := detectFileType(header)
+	if errs != nil {
+		return "", errs
+	}
+
+	// Create destination file
+	filename := uuid.NewString() + "." + ext
+	uri := filepath.Join(service.dir, filename)
+	dst, err := os.Create(uri)
+	if err != nil {
+		return "", systemErrString("Failed to create file", err)
+	}
+
+	defer dst.Close()
+
+	if err := service.db.Create(&models.Image{
+		Url:  filename,
+		Size: header.Size,
+	}).Error; err != nil {
+		return "", systemErr(err)
+	}
+
+	// Copy uploaded file to destination
+	if _, err := io.Copy(dst, file); err != nil {
+		return "", systemErrString("Failed to save file", err)
+	}
+
+	return filename, nil
+}
+
+func (service *ImageUploadService) UploadMultiple(r *http.Request, formInputKey string) ([]string, *ServiceError) {
+
+	// Limit request size
+	r.ParseMultipartForm(service.maxMemoryMB << 20) // 10MB max memory
+
+	files := r.MultipartForm.File[formInputKey]
+	if len(files) == 0 {
+		return nil, clientErr("No files uploaded")
+	}
+
+	uris := make([]string, 0, len(files))
+	for _, fileHeader := range files {
+		uri, errs := service.uploadFileFromHeader(fileHeader)
+		if errs != nil {
+			return nil, errs
+		}
+		uris = append(uris, uri)
+	}
+	return uris, nil
+
+}
+
+func (service *ImageUploadService) uploadFileFromHeader(fileheader *multipart.FileHeader) (string, *ServiceError) {
+
+	file, err := fileheader.Open()
+	if err != nil {
+		return "", systemErrString("Failed to open uploaded file", err)
+	}
+	defer file.Close()
+
+	ext, errs := detectFileType(fileheader)
+	if errs != nil {
+		return "", errs
+	}
+
+	filename := uuid.NewString() + "." + ext
+	dstPath := filepath.Join(service.dir, filename)
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return "", systemErrString("Failed to create file on server", err)
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		return "", systemErrString("Failed to save uploaded file", err)
+	}
+	return dstPath, nil
+}

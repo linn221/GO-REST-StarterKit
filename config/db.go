@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"io"
-	"linn221/shop/models"
 	"log"
 	"os"
 	"path/filepath"
@@ -34,14 +33,19 @@ func ConnectDB() *gorm.DB {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// _UPLOAD_DIR = os.Getenv("UPLOAD_DIR")
-	// if _UPLOAD_DIR == "" {
-	// 	panic("set UPLOAD_DIR env variable")
-	// }
+
+	_UPLOAD_DIR = os.Getenv("UPLOAD_DIR")
+	if _UPLOAD_DIR == "" {
+		panic("set UPLOAD_DIR in .env")
+	}
+	fmt.Println(_UPLOAD_DIR)
 	return connectDatabase()
 	// connectRedis()
 }
 
+func GetImageDirectory() string {
+	return _UPLOAD_DIR
+}
 func connectDatabase() *gorm.DB {
 	databaseConfig := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?multiStatements=true&parseTime=true",
 		os.Getenv("DB_USER"),
@@ -57,10 +61,7 @@ func connectDatabase() *gorm.DB {
 	if err != nil {
 		panic("Fail To Connect Database")
 	}
-	err = db.AutoMigrate(&models.Shop{}, &models.User{})
-	if err != nil {
-		panic("Error migrating: " + err.Error())
-	}
+	migrate(db)
 	return db
 }
 

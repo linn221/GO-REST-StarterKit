@@ -67,3 +67,29 @@ func respondOk(w http.ResponseWriter, v any) error {
 func respondNoContent(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// will parse the request, if found errors, will write to the response
+// instance, continue, internalError
+
+func parseJson2[T any](w http.ResponseWriter, r *http.Request) (*T, bool, error) {
+	var v T
+	err := json.NewDecoder(r.Body).Decode(&v)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		finalErr := json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return nil, false, finalErr
+	}
+
+	defer r.Body.Close()
+	err = validateStruct.Struct(&v)
+	if err != nil {
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+			err := writeValidationErrors(w, ve)
+			return nil, false, err
+		}
+		return nil, false, err
+	}
+	return &v, true, nil
+}

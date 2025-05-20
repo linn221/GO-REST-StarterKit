@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"linn221/shop/models"
@@ -10,7 +11,16 @@ import (
 	"gorm.io/gorm"
 )
 
-type userService struct{}
+type UserCruder interface {
+	GetUser(context.Context, int) (*models.User, *ServiceError)
+	ChangePassword(context.Context, int, string, string) *ServiceError
+	UpdateInfo(context.Context, int, string, string, *string) *ServiceError
+}
+
+type userService struct {
+	db    *gorm.DB
+	cache CacheService
+}
 type ServiceError struct {
 	Err  error
 	Code int
@@ -44,17 +54,17 @@ func clientErr(s string) *ServiceError {
 	}
 }
 
-func (s *userService) GetUser(id int, db *gorm.DB, cache CacheService) (*models.User, *ServiceError) {
+func (s *userService) GetUser(ctx context.Context, id int) (*models.User, *ServiceError) {
 	var user models.User
-	if err := db.First(&user, id).Error; err != nil {
+	if err := s.db.First(&user, id).Error; err != nil {
 		return nil, systemErr(err)
 	}
 
 	return &user, nil
 }
 
-func (s *userService) ChangePassword(id int, oldPasword string, newPassword string, db *gorm.DB, cache CacheService) *ServiceError {
-	user, errs := s.GetUser(id, db, cache)
+func (s *userService) ChangePassword(ctx context.Context, id int, oldPasword string, newPassword string) *ServiceError {
+	user, errs := s.GetUser(ctx, id)
 	if errs != nil {
 		return errs
 	}
@@ -65,14 +75,14 @@ func (s *userService) ChangePassword(id int, oldPasword string, newPassword stri
 	if err != nil {
 		return systemErr(err)
 	}
-	if err := db.Model(&user).UpdateColumn("password", hashed).Error; err != nil {
+	if err := s.db.Model(&user).UpdateColumn("password", hashed).Error; err != nil {
 		return systemErr(err)
 	}
 	return nil
 }
 
-func (s *userService) UpdateInfo(id int, username string, email string, phoneNo *string, db *gorm.DB, cache CacheService) *ServiceError {
-	user, errs := s.GetUser(id, db, cache)
+func (s *userService) UpdateInfo(ctx context.Context, id int, username string, email string, phoneNo *string) *ServiceError {
+	user, errs := s.GetUser(ctx, id)
 	if errs != nil {
 		return errs
 	}
@@ -83,14 +93,14 @@ func (s *userService) UpdateInfo(id int, username string, email string, phoneNo 
 	if phoneNo != nil {
 		updates["PhoneNo"] = *phoneNo
 	}
-	if err := Validate(db,
+	if err := Validate(s.db,
 		NewUniqueRule("users", "username", username, id, "duplicate username"),
 		NewUniqueRule("users", "email", email, id, "duplicate email"),
 		NewUniqueRule("users", "phone_no", phoneNo, id, "duplicate phone number").When(phoneNo != nil),
 	); err != nil {
 		return err
 	}
-	if err := db.Model(&user).Updates(updates).Error; err != nil {
+	if err := s.db.Model(&user).Updates(updates).Error; err != nil {
 		return systemErr(err)
 	}
 

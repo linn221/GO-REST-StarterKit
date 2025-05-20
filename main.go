@@ -7,31 +7,32 @@ import (
 	"linn221/shop/services"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/go-playground/validator"
-	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
 
 func main() {
 
-	godotenv.Load(".env")
+	// godotenv.Load(".env")
 	port := "8080"
-	if p := os.Getenv("API_PORT"); p != "" {
-		port = p
-	}
+	// if p := os.Getenv("API_PORT"); p != "" {
+	// 	port = p
+	// }
 	ctx := context.Background()
-	var cacheService services.CacheService
 	var db *gorm.DB
-	cacheService = config.ConnectRedis(ctx)
 	db = config.ConnectDB()
+	var cacheService services.CacheService
+	cacheService = config.ConnectRedis(ctx)
 	validate := validator.New()
+	myservices := services.NewServices(db, cacheService)
+
 	container := &services.Container{
-		DB:       db,
-		Cache:    cacheService,
-		Validate: validate,
+		DB:         db,
+		Cache:      cacheService,
+		Validate:   validate,
+		MyServices: myservices,
 	}
 
 	mux := myRouter(container)

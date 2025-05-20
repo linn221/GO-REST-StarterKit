@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type GeneralHandlerFunc func(http.ResponseWriter, *http.Request, int, string, *gorm.DB, services.CacheService) error
+type GeneralHandlerFunc func(http.ResponseWriter, *http.Request, int, string, *gorm.DB, services.CacheService, *services.Instance) error
 
 func DefaultH(container *services.Container, h GeneralHandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -19,7 +19,7 @@ func DefaultH(container *services.Container, h GeneralHandlerFunc) http.HandlerF
 			return
 		}
 
-		err = h(w, r, userId, shopId, container.DB.WithContext(ctx), container.Cache)
+		err = h(w, r, userId, shopId, container.DB.WithContext(ctx), container.Cache, container.MyServices)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -28,7 +28,7 @@ func DefaultH(container *services.Container, h GeneralHandlerFunc) http.HandlerF
 	}
 }
 
-type InputHandlerFunc[T any] func(http.ResponseWriter, *http.Request, *T, int, string, *gorm.DB, services.CacheService) error
+type InputHandlerFunc[T any] func(http.ResponseWriter, *http.Request, *T, int, string, *gorm.DB, services.CacheService, *services.Instance) error
 
 func WithInput[T any](container *services.Container, h InputHandlerFunc[T]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +47,34 @@ func WithInput[T any](container *services.Container, h InputHandlerFunc[T]) http
 			return
 		}
 
-		err = h(w, r, input, userId, shopId, container.DB.WithContext(ctx), container.Cache)
+		err = h(w, r, input, userId, shopId, container.DB.WithContext(ctx), container.Cache, container.MyServices)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+type DefaultSession struct {
+	UserId int
+	ShopId string
+}
+
+func DefaultHandler(handle func(*DefaultSession, http.ResponseWriter, *http.Request) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		userId, shopId, err := myctx.GetIdsFromContext(ctx)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		session := DefaultSession{
+			UserId: userId,
+			ShopId: shopId,
+		}
+
+		err = handle(&session, w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
