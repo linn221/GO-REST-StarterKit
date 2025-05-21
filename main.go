@@ -4,12 +4,12 @@ import (
 	"context"
 	"linn221/shop/config"
 	"linn221/shop/middlewares"
+	"linn221/shop/models"
 	"linn221/shop/services"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/go-playground/validator"
 	"gorm.io/gorm"
 )
 
@@ -25,14 +25,14 @@ func main() {
 	db = config.ConnectDB()
 	var cacheService services.CacheService
 	cacheService = config.ConnectRedis(ctx)
-	validate := validator.New()
-	myservices := services.NewServices(db, cacheService)
+	dir := config.GetImageDirectory()
+	readServices := models.NewReadServices(db, cacheService)
 
-	container := &services.Container{
-		DB:         db,
-		Cache:      cacheService,
-		Validate:   validate,
-		MyServices: myservices,
+	container := &Container{
+		DB:             db,
+		Cache:          cacheService,
+		ImageDirectory: dir,
+		ReadServices:   readServices,
 	}
 
 	mux := myRouter(container)

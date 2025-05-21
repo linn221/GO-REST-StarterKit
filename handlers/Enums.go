@@ -20,6 +20,10 @@ func (i *inputString) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (i inputString) String() string {
+	return string(i)
+}
+
 type optionalString string
 
 func (i *optionalString) UnmarshalJSON(data []byte) error {

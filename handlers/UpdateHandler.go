@@ -3,17 +3,19 @@ package handlers
 import (
 	"linn221/shop/myctx"
 	"net/http"
+	"strconv"
 )
 
-type CreateSession[T any] struct {
+type UpdateSession[T any] struct {
 	UserId int
 	ShopId string
+	ResId  int
 	Input  *T
 }
 
-type CreateFunc[T any] func(http.ResponseWriter, *http.Request, *CreateSession[T]) error
+type UpdateFunc[T any] func(w http.ResponseWriter, r *http.Request, session *UpdateSession[T]) error
 
-func CreateHandler[T any](handle CreateFunc[T]) http.HandlerFunc {
+func UpdateHandler[T any](handle UpdateFunc[T]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -31,12 +33,20 @@ func CreateHandler[T any](handle CreateFunc[T]) http.HandlerFunc {
 			return
 		}
 
-		CreateSession := CreateSession[T]{
+		resIdStr := r.PathValue("id")
+		resId, err := strconv.Atoi(resIdStr)
+		if err != nil || resId <= 0 {
+			http.Error(w, "invalid resource id", http.StatusBadRequest)
+			return
+		}
+
+		UpdateSession := UpdateSession[T]{
 			UserId: userId,
 			ShopId: shopId,
 			Input:  input,
+			ResId:  resId,
 		}
-		err = handle(w, r, &CreateSession)
+		err = handle(w, r, &UpdateSession)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

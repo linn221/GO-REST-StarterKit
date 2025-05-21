@@ -18,3 +18,13 @@ type CacheService interface {
 	RemoveSetMember(setKey string, member string) error
 	RemoveKeys(keys ...string) error
 }
+
+type Getter[T any] interface {
+	Get(shopId string, id int) (*T, bool, error)
+}
+type Lister[T any] interface {
+	List(shopId string) ([]T, error)
+}
+
+type InstanceCacheCleaner func(id int) error
+type ListingCacheCleaner func(shopId string) error

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"linn221/shop/models"
-	"linn221/shop/services"
 	"linn221/shop/utils"
 	"math/rand"
 	"net/http"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type NewShop struct {
@@ -19,7 +19,7 @@ type NewShop struct {
 	PhoneNo  string `json:"phone_no" validate:"required,min=2"`
 }
 
-func Register(container *services.Container) http.HandlerFunc {
+func Register(db *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// var input NewShop
 		// defer r.Body.Close()
@@ -27,7 +27,7 @@ func Register(container *services.Container) http.HandlerFunc {
 		// if err != nil {
 		// 	http.Error(w, err.Error(), http.StatusInternalServerError)
 		// }
-		input, ok, finalErr := parseJsonOld[NewShop](w, r, container.Validate)
+		input, ok, finalErr := parseJson[NewShop](w, r)
 		if !ok {
 			if finalErr != nil {
 				http.Error(w, finalErr.Error(), http.StatusInternalServerError)
@@ -36,7 +36,7 @@ func Register(container *services.Container) http.HandlerFunc {
 		}
 
 		ctx := r.Context()
-		tx := container.DB.WithContext(ctx).Begin()
+		tx := db.WithContext(ctx).Begin()
 		defer tx.Rollback()
 
 		shopId := uuid.NewString()

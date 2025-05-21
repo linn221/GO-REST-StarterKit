@@ -6,5 +6,4 @@ var validateStruct *validator.Validate
 
 func init() {
 	validateStruct = validator.New()
-
 }

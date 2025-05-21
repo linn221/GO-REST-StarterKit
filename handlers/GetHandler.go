@@ -12,9 +12,9 @@ type GetSession struct {
 	ResId  int
 }
 
-type GetFunc[T any] func(http.ResponseWriter, *http.Request, *GetSession) error
+type GetFunc func(w http.ResponseWriter, r *http.Request, session *GetSession) error
 
-func GetHandler[T any](handle GetFunc[T]) http.HandlerFunc {
+func GetHandler(handle GetFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()

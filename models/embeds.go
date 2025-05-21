@@ -28,6 +28,6 @@ type HasShopId struct {
 	ShopId string `gorm:"index;not null"`
 }
 
-func (h *HasShopId) GetShopId() string {
+func (h HasShopId) GetShopId() string {
 	return h.ShopId
 }

@@ -12,7 +12,7 @@ type DeleteSession struct {
 	ResId  int
 }
 
-type DeleteFunc func(http.ResponseWriter, *http.Request, *DeleteSession) error
+type DeleteFunc func(w http.ResponseWriter, r *http.Request, session *DeleteSession) error
 
 func DeleteHandler(handle DeleteFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

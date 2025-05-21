@@ -1,4 +1,4 @@
-package services
+package handlers
 
 import (
 	"linn221/shop/utils"

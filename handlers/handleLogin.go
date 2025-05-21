@@ -14,9 +14,10 @@ type LoginInfo struct {
 	Password string `json:"password" validate:"required,max=255"`
 }
 
-func Login(container *services.Container) http.HandlerFunc {
+func Login(db *gorm.DB, cache services.CacheService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		login, ok, err := parseJsonOld[LoginInfo](w, r, container.Validate)
+		ctx := r.Context()
+		login, ok, err := parseJson[LoginInfo](w, r)
 		if !ok {
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -25,7 +26,7 @@ func Login(container *services.Container) http.HandlerFunc {
 		}
 
 		var user models.User
-		if err := container.DB.Where("username = ?", login.Username).First(&user).Error; err != nil {
+		if err := db.WithContext(ctx).Where("username = ?", login.Username).First(&user).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				http.Error(w, "invalid username/password", http.StatusBadRequest)
 				return
@@ -37,7 +38,7 @@ func Login(container *services.Container) http.HandlerFunc {
 			http.Error(w, "invalid username/password", http.StatusBadRequest)
 			return
 		}
-		token, err := services.NewSession(user.Id, user.ShopId, container.Cache)
+		token, err := services.NewSession(user.Id, user.ShopId, cache)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
