@@ -26,13 +26,13 @@ func main() {
 	var cacheService services.CacheService
 	cacheService = config.ConnectRedis(ctx)
 	dir := config.GetImageDirectory()
-	readServices := models.NewReadServices(db, cacheService)
+	readServices := models.NewReaders(db, cacheService)
 
 	container := &Container{
 		DB:             db,
 		Cache:          cacheService,
 		ImageDirectory: dir,
-		ReadServices:   readServices,
+		Readers:        readServices,
 	}
 
 	mux := myRouter(container)

@@ -18,7 +18,7 @@ func (input *NewCategory) validate(db *gorm.DB, shopId string, id int) *ServiceE
 		Filter("shop_id = ?", shopId))
 }
 
-func HandleCategoryCreate(db *gorm.DB, cleanListingCache services.ListingCacheCleaner) http.HandlerFunc {
+func HandleCategoryCreate(db *gorm.DB, cleanListingCache services.CleanListingCache) http.HandlerFunc {
 	return CreateHandler(func(w http.ResponseWriter, r *http.Request, session *CreateSession[NewCategory]) error {
 		ctx := r.Context()
 		if errs := session.Input.validate(db.WithContext(ctx), session.ShopId, 0); errs != nil {
@@ -42,7 +42,11 @@ func HandleCategoryCreate(db *gorm.DB, cleanListingCache services.ListingCacheCl
 		return nil
 	})
 }
-func HandleCategoryUpdate(db *gorm.DB, cleanListingCache services.ListingCacheCleaner, cleanInstanceCache services.InstanceCacheCleaner) http.HandlerFunc {
+
+func HandleCategoryUpdate(db *gorm.DB,
+	cleanListingCache services.CleanListingCache,
+	cleanInstanceCache services.CleanInstanceCache,
+) http.HandlerFunc {
 	return UpdateHandler(func(w http.ResponseWriter, r *http.Request, session *UpdateSession[NewCategory]) error {
 		ctx := r.Context()
 		if errs := session.Input.validate(db.WithContext(ctx), session.ShopId, session.ResId); errs != nil {
@@ -73,7 +77,10 @@ func HandleCategoryUpdate(db *gorm.DB, cleanListingCache services.ListingCacheCl
 	})
 }
 
-func HandleCategoryDelete(db *gorm.DB) http.HandlerFunc {
+func HandleCategoryDelete(db *gorm.DB,
+	cleanListingCache services.CleanListingCache,
+	cleanInstanceCache services.CleanInstanceCache,
+) http.HandlerFunc {
 	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session *DeleteSession) error {
 		ctx := r.Context()
 		var category models.Category
@@ -94,29 +101,36 @@ func HandleCategoryDelete(db *gorm.DB) http.HandlerFunc {
 			return err
 		}
 
+		if err := cleanListingCache(session.ShopId); err != nil {
+			return err
+		}
+		if err := cleanInstanceCache(session.ResId); err != nil {
+			return err
+		}
+
 		respondNoContent(w)
 		return nil
 	})
 
 }
 
-func HandleCategoryGet(getService services.Getter[models.Category]) http.HandlerFunc {
-	return GetHandler(func(w http.ResponseWriter, r *http.Request, session *GetSession) error {
-		category, found, err := getService.Get(session.ShopId, session.ResId)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return respondNotFound(w, "category not found")
-		}
-		return respondOk(w, category)
-	})
-}
+// func HandleCategoryGet(getService services.Getter[models.Category]) http.HandlerFunc {
+// 	return GetHandler(func(w http.ResponseWriter, r *http.Request, session *GetSession) error {
+// 		category, found, err := getService.Get(session.ShopId, session.ResId)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if !found {
+// 			return respondNotFound(w, "category not found")
+// 		}
+// 		return respondOk(w, category)
+// 	})
+// }
 
-func HandleCategoryList(db *gorm.DB) http.HandlerFunc {
+func HandleCategoryList(listService services.Lister[models.Category]) http.HandlerFunc {
 	return DefaultHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession) error {
-		var categories []models.Category
-		if err := db.WithContext(r.Context()).Where("shop_id = ?", session.ShopId).Find(&categories).Error; err != nil {
+		categories, err := listService.List(session.ShopId)
+		if err != nil {
 			return err
 		}
 		return respondOk(w, categories)

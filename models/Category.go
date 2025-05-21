@@ -8,6 +8,13 @@ type Category struct {
 	HasIsActive
 }
 
+type CategoryResource struct {
+	Id          int     `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	HasShopId
+}
+
 // func (cat *Category) AfterCreate(db *gorm.DB) error {
 // 	if err := ; err != nil {
 // 		return err

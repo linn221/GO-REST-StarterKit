@@ -11,5 +11,5 @@ type Container struct {
 	DB             *gorm.DB
 	Cache          services.CacheService
 	ImageDirectory string
-	ReadServices   *models.ReadServices
+	Readers        *models.ReadServices
 }

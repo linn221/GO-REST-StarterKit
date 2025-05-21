@@ -50,12 +50,12 @@
 	"New Snippet": {
 		"prefix": "snip",
 		"body": [
-	"\t\"new snippettt\": {",
-	"\t\t\"prefix\": \"$1\",",
-	"\t\t\"body\": [",
-	"$0",
-	"\t\t],",
-	"\t},",
+			"\t\"new snippettt\": {",
+			"\t\t\"prefix\": \"$1\",",
+			"\t\t\"body\": [",
+			"$0",
+			"\t\t],",
+			"\t},",
 		],
 	},
 	"My handler": {
@@ -67,20 +67,24 @@
 		],
 		"description": "Log output to console"
 	},
-		"new snippsettt": {
-			"prefix": "ison",
-			"body": [
-		"`json:\"$1\" validate:\"$0\"`"
-			],
-		},
-			"new snippettt": {
-				"prefix": "hwithinput",
-				"body": [
-		
-	"func $1(w http.ResponseWriter, r *http.Request, input *$2, userId int, shopId string, db *gorm.DB, cache services.CacheService) error {",
-	"$0",
-	"}"
-
-				],
-			},
+	"new snippsettt": {
+		"prefix": "ison",
+		"body": [
+			"`json:\"$1\" validate:\"$0\"`"
+		],
+	},
+	"new snippsetttss": {
+		"prefix": "json",
+		"body": [
+			"`json:\"$0\"`"
+		],
+	},
+	"new snippettt": {
+		"prefix": "hwithinput",
+		"body": [
+			"func $1(w http.ResponseWriter, r *http.Request, input *$2, userId int, shopId string, db *gorm.DB, cache services.CacheService) error {",
+			"$0",
+			"}"
+		],
+	},
 }

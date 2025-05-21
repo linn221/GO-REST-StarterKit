@@ -25,7 +25,7 @@ func (h *HasUserId) InjectUserId(userId int) {
 }
 
 type HasShopId struct {
-	ShopId string `gorm:"index;not null"`
+	ShopId string `gorm:"index;not null" json:"shop_id"`
 }
 
 func (h HasShopId) GetShopId() string {

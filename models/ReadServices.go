@@ -7,20 +7,20 @@ import (
 )
 
 type ReadServices struct {
-	CategoryGetService  services.Getter[Category]
-	CategoryListService services.Lister[Category]
+	CategoryGetService  services.Getter[CategoryResource]
+	CategoryListService services.Lister[CategoryResource]
 }
 
-func NewReadServices(db *gorm.DB, cache services.CacheService) *ReadServices {
+func NewReaders(db *gorm.DB, cache services.CacheService) *ReadServices {
 	return &ReadServices{
-		CategoryGetService: &generalGetService[Category]{
+		CategoryGetService: &defaultGetService[CategoryResource]{
 			db:          db,
 			cache:       cache,
 			table:       "categories",
 			cachePrefix: "Category",
 			cacheLength: forever,
 		},
-		CategoryListService: &generalListService[Category]{
+		CategoryListService: &defaultListService[CategoryResource]{
 			db:          db,
 			cache:       cache,
 			table:       "categories",

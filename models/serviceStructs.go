@@ -22,7 +22,7 @@ type Resource interface {
 	GetShopId() string
 }
 
-type generalGetService[T Resource] struct {
+type defaultGetService[T Resource] struct {
 	db          *gorm.DB
 	cache       services.CacheService
 	table       string
@@ -30,7 +30,12 @@ type generalGetService[T Resource] struct {
 	cacheLength time.Duration
 }
 
-func (service *generalGetService[T]) Get(shopId string, id int) (*T, bool, error) {
+type CacheStruct[T any] struct {
+	Resource T
+	ShopId   string
+}
+
+func (service *defaultGetService[T]) Get(shopId string, id int) (*T, bool, error) {
 	var result T
 
 	redisKey := service.cachePrefix + ":" + fmt.Sprint(id)
@@ -58,13 +63,13 @@ func (service *generalGetService[T]) Get(shopId string, id int) (*T, bool, error
 }
 
 // clear cache
-func (service *generalGetService[T]) Clean(id int) error {
+func (service *defaultGetService[T]) CleanCache(id int) error {
 	key := service.cachePrefix + ":" + fmt.Sprint(id)
 	return service.cache.RemoveKey(key)
 }
 
 // only listing active ones
-type generalListService[T any] struct {
+type defaultListService[T any] struct {
 	db          *gorm.DB
 	cache       services.CacheService
 	table       string
@@ -72,7 +77,7 @@ type generalListService[T any] struct {
 	cacheLength time.Duration
 }
 
-func (service *generalListService[T]) List(shopId string) ([]T, error) {
+func (service *defaultListService[T]) List(shopId string) ([]T, error) {
 	var results []T
 
 	key := service.cachePrefix + ":" + shopId
@@ -93,7 +98,7 @@ func (service *generalListService[T]) List(shopId string) ([]T, error) {
 }
 
 // clear cache
-func (service *generalListService[ResponseT]) Clean(shopId string) error {
+func (service *defaultListService[ResponseT]) CleanCache(shopId string) error {
 	return service.cache.RemoveKey(service.cachePrefix + ":" + fmt.Sprint(shopId))
 }
 

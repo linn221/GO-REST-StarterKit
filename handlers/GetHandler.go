@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"linn221/shop/myctx"
+	"linn221/shop/services"
 	"net/http"
 	"strconv"
 )
@@ -14,11 +15,11 @@ type GetSession struct {
 
 type GetFunc func(w http.ResponseWriter, r *http.Request, session *GetSession) error
 
-func GetHandler(handle GetFunc) http.HandlerFunc {
+func DefaultGetHandler[T any](getService services.Getter[T]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
-		userId, shopId, err := myctx.GetIdsFromContext(ctx)
+		_, shopId, err := myctx.GetIdsFromContext(ctx)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -31,15 +32,26 @@ func GetHandler(handle GetFunc) http.HandlerFunc {
 			return
 		}
 
-		GetSession := GetSession{
-			UserId: userId,
-			ShopId: shopId,
-			ResId:  resId,
-		}
-		err = handle(w, r, &GetSession)
+		resource, found, err := getService.Get(shopId, resId)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if !found {
+			finalErrHandle(w,
+				respondNotFound(w, "record not found"),
+			)
+			return
+		}
+
+		finalErrHandle(w,
+			respondOk(w, resource),
+		)
+	}
+}
+
+func finalErrHandle(w http.ResponseWriter, err error) {
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
