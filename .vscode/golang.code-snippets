@@ -39,6 +39,15 @@
 		],
 		"description": "Log output to console"
 	},
+	"Inline error Handle validate#2s": {
+		"prefix": "evs",
+		"body": [
+			"if errs := $0; errs != nil {",
+			"\treturn errs.Respond(w)",
+			"}",
+		],
+		"description": "Log output to console"
+	},
 	"Error Handle": {
 		"prefix": "rnil",
 		"body": [

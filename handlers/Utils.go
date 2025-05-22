@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator"
+	"gorm.io/gorm"
 )
 
 type ValidationError struct {
@@ -60,6 +61,19 @@ func respondClientError(w http.ResponseWriter, s string) error {
 
 func respondNoContent(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func first[T any](db *gorm.DB, shopId string, id int) (*T, *ServiceError) {
+	var v T
+	err := db.Where("shop_id = ?", shopId).First(&v, id).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, &ServiceError{Code: http.StatusNotFound, Err: err}
+		}
+		return nil, systemErr(err)
+	}
+
+	return &v, nil
 }
 
 // will parse the request, if found errors, will write to the response

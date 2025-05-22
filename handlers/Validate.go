@@ -61,10 +61,10 @@ func NewFilter(cond string, values ...interface{}) *HasFilter {
 	}
 }
 
-func NewAppFilter(appId int) *HasFilter {
+func NewShopFilter(shopId string) *HasFilter {
 	return &HasFilter{
-		Cond:         "app_id = ?",
-		FilterValues: []interface{}{appId},
+		Cond:         "shop_id = ?",
+		FilterValues: []interface{}{shopId},
 	}
 }
 
@@ -204,14 +204,15 @@ func (r ruleUnique) CountResults(dbCtx *gorm.DB, count *int64) *ServiceError {
 	return nil
 }
 
-func NewUniqueRule(table string, column string, value interface{}, exceptId int, message string) ruleUnique {
+func NewUniqueRule(table string, column string, value interface{}, exceptId int, message string, filter *HasFilter) ruleUnique {
 	// var v T
 	return ruleUnique{
-		table:    table,
-		column:   column,
-		value:    value,
-		exceptId: exceptId,
-		message:  message,
+		table:     table,
+		column:    column,
+		value:     value,
+		exceptId:  exceptId,
+		message:   message,
+		HasFilter: filter,
 	}
 }
 

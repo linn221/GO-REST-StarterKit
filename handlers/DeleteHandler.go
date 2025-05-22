@@ -6,13 +6,13 @@ import (
 	"strconv"
 )
 
-type DeleteSession struct {
+type Session struct {
 	UserId int
 	ShopId string
 	ResId  int
 }
 
-type DeleteFunc func(w http.ResponseWriter, r *http.Request, session *DeleteSession) error
+type DeleteFunc func(w http.ResponseWriter, r *http.Request, session *Session) error
 
 func DeleteHandler(handle DeleteFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +31,7 @@ func DeleteHandler(handle DeleteFunc) http.HandlerFunc {
 			return
 		}
 
-		DeleteSession := DeleteSession{
+		DeleteSession := Session{
 			UserId: userId,
 			ShopId: shopId,
 			ResId:  resId,

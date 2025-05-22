@@ -14,28 +14,33 @@ type NewCategory struct {
 }
 
 func (input *NewCategory) validate(db *gorm.DB, shopId string, id int) *ServiceError {
-	return Validate(db, NewUniqueRule("categories", "name", input.Name.String(), id, "duplicate category name").
-		Filter("shop_id = ?", shopId))
+	return Validate(db, NewUniqueRule("categories", "name", input.Name.String(), id, "duplicate category name", NewShopFilter(shopId)))
 }
 
 func HandleCategoryCreate(db *gorm.DB, cleanListingCache services.CleanListingCache) http.HandlerFunc {
-	return CreateHandler(func(w http.ResponseWriter, r *http.Request, session *CreateSession[NewCategory]) error {
+	return CreateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewCategory) error {
 		ctx := r.Context()
-		if errs := session.Input.validate(db.WithContext(ctx), session.ShopId, 0); errs != nil {
+		if errs := input.validate(db.WithContext(ctx), session.ShopId, 0); errs != nil {
 			return errs.Respond(w)
 		}
 
 		category := models.Category{
-			Name:        session.Input.Name.String(),
-			Description: session.Input.Description.StringPtr(),
+			Name:        input.Name.String(),
+			Description: input.Description.StringPtr(),
 		}
 		category.ShopId = session.ShopId
 
-		if err := db.WithContext(ctx).Create(&category).Error; err != nil {
-			return err
-		}
+		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := tx.Create(&category).Error; err != nil {
+				return err
+			}
 
-		if err := cleanListingCache(session.ShopId); err != nil {
+			if err := cleanListingCache(session.ShopId); err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
 
@@ -48,9 +53,9 @@ func HandleCategoryUpdate(db *gorm.DB,
 	cleanListingCache services.CleanListingCache,
 	cleanInstanceCache services.CleanInstanceCache,
 ) http.HandlerFunc {
-	return UpdateHandler(func(w http.ResponseWriter, r *http.Request, session *UpdateSession[NewCategory]) error {
+	return UpdateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewCategory) error {
 		ctx := r.Context()
-		if errs := session.Input.validate(db.WithContext(ctx), session.ShopId, session.ResId); errs != nil {
+		if errs := input.validate(db.WithContext(ctx), session.ShopId, session.ResId); errs != nil {
 			return errs.Respond(w)
 		}
 		var category models.Category
@@ -58,18 +63,25 @@ func HandleCategoryUpdate(db *gorm.DB,
 			return err
 		}
 		updates := map[string]any{
-			"Name": session.Input.Name.String(),
+			"Name": input.Name.String(),
 		}
-		if session.Input.Description.IsPresent() {
-			updates["Description"] = session.Input.Description
+		if input.Description.IsPresent() {
+			updates["Description"] = input.Description
 		}
-		if err := db.WithContext(ctx).Model(&category).Updates(updates).Error; err != nil {
-			return err
-		}
-		if err := cleanInstanceCache(session.ResId); err != nil {
-			return err
-		}
-		if err := cleanListingCache(session.ShopId); err != nil {
+
+		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := tx.Model(&category).Updates(updates).Error; err != nil {
+				return err
+			}
+			if err := cleanInstanceCache(session.ResId); err != nil {
+				return err
+			}
+			if err := cleanListingCache(session.ShopId); err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
 
@@ -82,7 +94,7 @@ func HandleCategoryDelete(db *gorm.DB,
 	cleanListingCache services.CleanListingCache,
 	cleanInstanceCache services.CleanInstanceCache,
 ) http.HandlerFunc {
-	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session *DeleteSession) error {
+	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session *Session) error {
 		ctx := r.Context()
 		var category models.Category
 		if err := db.WithContext(ctx).Where("shop_id = ?", session.ShopId).First(&category, session.ResId).Error; err != nil {
@@ -97,15 +109,19 @@ func HandleCategoryDelete(db *gorm.DB,
 		// ); errs != nil {
 		// 	return errs.Respond(w)
 		// }
-
-		if err := db.WithContext(ctx).Delete(&category).Error; err != nil {
-			return err
-		}
-
-		if err := cleanListingCache(session.ShopId); err != nil {
-			return err
-		}
-		if err := cleanInstanceCache(session.ResId); err != nil {
+		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := tx.Delete(&category).Error; err != nil {
+				return err
+			}
+			if err := cleanInstanceCache(session.ResId); err != nil {
+				return err
+			}
+			if err := cleanListingCache(session.ShopId); err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
 

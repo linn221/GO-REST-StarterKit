@@ -55,10 +55,11 @@ func UpdateUserInfo(db *gorm.DB) http.HandlerFunc {
 		if input.PhoneNo.IsPresent() {
 			updates["PhoneNo"] = input.PhoneNo.String()
 		}
+		shopFilter := NewShopFilter(session.ShopId)
 		if errs := Validate(db,
-			NewUniqueRule("users", "username", input.Username, session.UserId, "duplicate username"),
-			NewUniqueRule("users", "email", input.Email, session.UserId, "duplicate email"),
-			NewUniqueRule("users", "phone_no", input.PhoneNo, session.UserId, "duplicate phone number").When(input.PhoneNo.IsPresent()),
+			NewUniqueRule("users", "username", input.Username, session.UserId, "duplicate username", shopFilter),
+			NewUniqueRule("users", "email", input.Email, session.UserId, "duplicate email", shopFilter),
+			NewUniqueRule("users", "phone_no", input.PhoneNo, session.UserId, "duplicate phone number", shopFilter).When(input.PhoneNo.IsPresent()),
 		); errs != nil {
 			return errs.Respond(w)
 		}

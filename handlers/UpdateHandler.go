@@ -6,14 +6,7 @@ import (
 	"strconv"
 )
 
-type UpdateSession[T any] struct {
-	UserId int
-	ShopId string
-	ResId  int
-	Input  *T
-}
-
-type UpdateFunc[T any] func(w http.ResponseWriter, r *http.Request, session *UpdateSession[T]) error
+type UpdateFunc[T any] func(w http.ResponseWriter, r *http.Request, session Session, input *T) error
 
 func UpdateHandler[T any](handle UpdateFunc[T]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -40,13 +33,12 @@ func UpdateHandler[T any](handle UpdateFunc[T]) http.HandlerFunc {
 			return
 		}
 
-		UpdateSession := UpdateSession[T]{
+		UpdateSession := Session{
 			UserId: userId,
 			ShopId: shopId,
-			Input:  input,
 			ResId:  resId,
 		}
-		err = handle(w, r, &UpdateSession)
+		err = handle(w, r, UpdateSession, input)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

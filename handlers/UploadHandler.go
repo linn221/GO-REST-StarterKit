@@ -62,12 +62,6 @@ func HandleImageUploadSingle(db *gorm.DB, dir string) http.HandlerFunc {
 	})
 }
 
-func handleError(err error, w http.ResponseWriter) {
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 // detectFileType reads the first 512 bytes and detects the MIME type
 func detectFileType(FileHeader *multipart.FileHeader) (string, *ServiceError) {
 	file, err := FileHeader.Open()
