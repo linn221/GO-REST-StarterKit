@@ -1,7 +1,6 @@
 package models
 
 import (
-	"errors"
 	"fmt"
 	"linn221/shop/services"
 	"time"
@@ -16,8 +15,6 @@ import (
 
 const forever = time.Duration(0)
 
-var Err404 = errors.New("record not found")
-
 type Resource interface {
 	GetShopId() string
 }
@@ -30,36 +27,39 @@ type defaultGetService[T Resource] struct {
 	cacheLength time.Duration
 }
 
-type CacheStruct[T any] struct {
-	Resource T
-	ShopId   string
+type CacheValue[T any] struct { // a workaround as T type exclude ShopId field from json
+	Object T
+	ShopId string
 }
 
 func (service *defaultGetService[T]) Get(shopId string, id int) (*T, bool, error) {
-	var result T
+	var cacheValue CacheValue[T]
 
 	redisKey := service.cachePrefix + ":" + fmt.Sprint(id)
-	exists, err := service.cache.GetObject(redisKey, &result)
+	exists, err := service.cache.GetObject(redisKey, &cacheValue)
 	if err != nil {
 		return nil, false, err
 	}
 	if !exists {
+		var result T
 		if err := service.db.Table(service.table).
-			First(&result, id).Error; err != nil { // using smart scan
+			First(&result, id).Error; err != nil { // using gorm's smart scan
 			if err == gorm.ErrRecordNotFound {
 				return nil, false, nil
 			}
 			return nil, false, err
 		}
-		if err := service.cache.SetObject(redisKey, &result, service.cacheLength); err != nil {
+		shopID := result.GetShopId()
+		cacheValue = CacheValue[T]{Object: result, ShopId: shopID}
+		if err := service.cache.SetObject(redisKey, &cacheValue, service.cacheLength); err != nil {
 			return nil, false, err
 		}
 	}
-	if result.GetShopId() != shopId {
+	if cacheValue.ShopId != shopId { // don't let user access resource owned by another shop
 		return nil, false, nil
 	}
 
-	return &result, true, nil
+	return &cacheValue.Object, true, nil
 }
 
 // clear cache
@@ -137,7 +137,7 @@ func (service *customGetService[T]) Get(shopId string, id int) (*T, bool, error)
 
 	return &result, true, nil
 }
-func (service *customGetService[T]) clear(id int) error {
+func (service *customGetService[T]) CleanCache(id int) error {
 	return service.cache.RemoveKey(service.cachePrefix + ":" + fmt.Sprint(id))
 }
 

@@ -30,3 +30,7 @@ type Lister[T any] interface {
 
 type CleanInstanceCache func(id int) error
 type CleanListingCache func(shopId string) error
+
+type HasIsActiveStatus interface {
+	GetIsActive() bool
+}

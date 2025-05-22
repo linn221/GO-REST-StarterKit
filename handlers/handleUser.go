@@ -36,9 +36,9 @@ func ChangePassword(db *gorm.DB) http.HandlerFunc {
 }
 
 type NewUserEdit struct {
-	Username inputString    `json:"username" validate:"required,min=3,max=100"`
-	Email    inputString    `json:"email" validate:"required,email,min=4,max=100"`
-	PhoneNo  optionalString `json:"phone_no" validate:"omitempty,min=5,max=20"`
+	Username inputString     `json:"username" validate:"required,min=3,max=100"`
+	Email    inputString     `json:"email" validate:"required,email,min=4,max=100"`
+	PhoneNo  *optionalString `json:"phone_no" validate:"omitempty,min=5,max=20"`
 }
 
 func UpdateUserInfo(db *gorm.DB) http.HandlerFunc {

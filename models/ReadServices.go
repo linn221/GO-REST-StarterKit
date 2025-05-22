@@ -7,13 +7,13 @@ import (
 )
 
 type ReadServices struct {
-	CategoryGetService  services.Getter[CategoryResource]
+	CategoryGetService  services.Getter[CategoryDetailResource]
 	CategoryListService services.Lister[CategoryResource]
 }
 
 func NewReaders(db *gorm.DB, cache services.CacheService) *ReadServices {
 	return &ReadServices{
-		CategoryGetService: &defaultGetService[CategoryResource]{
+		CategoryGetService: &defaultGetService[CategoryDetailResource]{
 			db:          db,
 			cache:       cache,
 			table:       "categories",

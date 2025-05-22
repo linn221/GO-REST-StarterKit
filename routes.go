@@ -3,6 +3,7 @@ package main
 import (
 	"linn221/shop/handlers"
 	"linn221/shop/middlewares"
+	"linn221/shop/models"
 	"net/http"
 )
 
@@ -25,6 +26,10 @@ func myRouter(c *Container) *http.ServeMux {
 	authMux.HandleFunc("DELETE /categories/{id}", handlers.HandleCategoryDelete(c.DB,
 		c.Readers.CategoryListService.CleanCache,
 		c.Readers.CategoryGetService.CleanCache,
+	))
+	authMux.HandleFunc("PATCH /categories/{id}/toggle", handlers.HandleToggleActive[models.Category](c.DB,
+		c.Readers.CategoryGetService.CleanCache,
+		c.Readers.CategoryListService.CleanCache,
 	))
 	authMux.HandleFunc("GET /categories/{id}", handlers.DefaultGetHandler(c.Readers.CategoryGetService))
 	authMux.HandleFunc("GET /categories", handlers.DefaultListHandler(c.Readers.CategoryListService))

@@ -15,6 +15,14 @@ type CategoryResource struct {
 	HasShopId
 }
 
+type CategoryDetailResource struct {
+	Id          int     `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	HasIsActive
+	HasShopId
+}
+
 // func (cat *Category) AfterCreate(db *gorm.DB) error {
 // 	if err := ; err != nil {
 // 		return err

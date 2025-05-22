@@ -9,8 +9,8 @@ import (
 )
 
 type NewCategory struct {
-	Name        inputString    `json:"name" validate:"required,min=2,max=100"`
-	Description optionalString `json:"description" validate:"omitempty,max=1000"`
+	Name        inputString     `json:"name" validate:"required,min=2,max=100"`
+	Description *optionalString `json:"description" validate:"omitempty,max=1000"`
 }
 
 func (input *NewCategory) validate(db *gorm.DB, shopId string, id int) *ServiceError {
@@ -34,6 +34,7 @@ func HandleCategoryCreate(db *gorm.DB, cleanListingCache services.CleanListingCa
 		if err := db.WithContext(ctx).Create(&category).Error; err != nil {
 			return err
 		}
+
 		if err := cleanListingCache(session.ShopId); err != nil {
 			return err
 		}
@@ -114,25 +115,25 @@ func HandleCategoryDelete(db *gorm.DB,
 
 }
 
-// func HandleCategoryGet(getService services.Getter[models.Category]) http.HandlerFunc {
-// 	return GetHandler(func(w http.ResponseWriter, r *http.Request, session *GetSession) error {
-// 		category, found, err := getService.Get(session.ShopId, session.ResId)
+// // func HandleCategoryGet(getService services.Getter[models.Category]) http.HandlerFunc {
+// // 	return GetHandler(func(w http.ResponseWriter, r *http.Request, session *GetSession) error {
+// // 		category, found, err := getService.Get(session.ShopId, session.ResId)
+// // 		if err != nil {
+// // 			return err
+// // 		}
+// // 		if !found {
+// // 			return respondNotFound(w, "category not found")
+// // 		}
+// // 		return respondOk(w, category)
+// // 	})
+// // }
+
+// func HandleCategoryList(listService services.Lister[models.Category]) http.HandlerFunc {
+// 	return DefaultHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession) error {
+// 		categories, err := listService.List(session.ShopId)
 // 		if err != nil {
 // 			return err
 // 		}
-// 		if !found {
-// 			return respondNotFound(w, "category not found")
-// 		}
-// 		return respondOk(w, category)
+// 		return respondOk(w, categories)
 // 	})
 // }
-
-func HandleCategoryList(listService services.Lister[models.Category]) http.HandlerFunc {
-	return DefaultHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession) error {
-		categories, err := listService.List(session.ShopId)
-		if err != nil {
-			return err
-		}
-		return respondOk(w, categories)
-	})
-}
