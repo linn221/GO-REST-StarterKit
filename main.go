@@ -5,7 +5,6 @@ import (
 	"linn221/shop/config"
 	"linn221/shop/middlewares"
 	"linn221/shop/models"
-	"linn221/shop/services"
 	"log"
 	"net/http"
 	"time"
@@ -23,14 +22,13 @@ func main() {
 	ctx := context.Background()
 	var db *gorm.DB
 	db = config.ConnectDB()
-	var cacheService services.CacheService
-	cacheService = config.ConnectRedis(ctx)
+	redisCache := config.ConnectRedis(ctx)
 	dir := config.GetImageDirectory()
-	readServices := models.NewReaders(db, cacheService)
+	readServices := models.NewReaders(db, redisCache)
 
 	container := &Container{
 		DB:             db,
-		Cache:          cacheService,
+		Cache:          redisCache,
 		ImageDirectory: dir,
 		Readers:        readServices,
 	}
@@ -38,7 +36,7 @@ func main() {
 	mux := myRouter(container)
 	srv := http.Server{
 		Addr:         ":" + port,
-		Handler:      middlewares.Default(mux, cacheService),
+		Handler:      middlewares.Default(mux, redisCache),
 		WriteTimeout: time.Second * 30,
 		ReadTimeout:  time.Second * 10,
 		IdleTimeout:  time.Minute,

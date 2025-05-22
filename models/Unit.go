@@ -20,5 +20,6 @@ type UnitDetailResource struct {
 	Name        string  `json:"name"`
 	Symbol      string  `json:"symbol"`
 	Description *string `json:"description"`
+	HasShopId
 	HasIsActive
 }

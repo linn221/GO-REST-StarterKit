@@ -14,6 +14,10 @@ type RedisCache struct {
 	rdb *redis.Client
 }
 
+func (rc *RedisCache) GetClient() *redis.Client {
+	return rc.rdb
+}
+
 // rc RedisCache
 func (rc *RedisCache) GetObject(key string, dest any) (bool, error) {
 	val, err := rc.rdb.Get(rc.ctx, key).Result()

@@ -16,9 +16,11 @@ type NewUnit struct {
 
 func (input *NewUnit) validate(db *gorm.DB, shopId string, id int) *ServiceError {
 
+	shopFilter := NewShopFilter(shopId)
 	if err := Validate(db,
-		NewUniqueRule("units", "name", input.Name, id, "duplicate name", NewShopFilter(shopId)),
-		NewUniqueRule("units", "symbol", input.Symbol, id, "duplicate symbol", NewShopFilter(shopId)),
+		NewExistsRule("units", id, "unit not found", shopFilter).When(id > 0),
+		NewUniqueRule("units", "name", input.Name, id, "duplicate name", shopFilter),
+		NewUniqueRule("units", "symbol", input.Symbol, id, "duplicate symbol", shopFilter),
 	); err != nil {
 		return err
 	}
@@ -39,11 +41,17 @@ func HandleUnitCreate(db *gorm.DB,
 			Description: input.Description.StringPtr(),
 		}
 		unit.ShopId = session.ShopId
-		if err := db.WithContext(r.Context()).Create(&unit).Error; err != nil {
-			return err
-		}
+		err := db.WithContext(r.Context()).Transaction(func(tx *gorm.DB) error {
+			if err := tx.Create(&unit).Error; err != nil {
+				return err
+			}
 
-		if err := cleanListingCache(session.ShopId); err != nil {
+			if err := cleanListingCache(session.ShopId); err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
 
@@ -73,22 +81,24 @@ func HandleUnitUpdate(db *gorm.DB,
 		if errs != nil {
 			return errs.Respond(w)
 		}
-		tx := db.WithContext(ctx).Begin()
-		defer tx.Rollback()
-		if err := tx.Model(&unit).Updates(updates).Error; err != nil {
+
+		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := tx.Model(&unit).Updates(updates).Error; err != nil {
+				return err
+			}
+
+			if err := cleanInstanceCache(session.ResId); err != nil {
+				return err
+			}
+			if err := cleanListingCache(session.ShopId); err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
 
-		if err := cleanInstanceCache(session.ResId); err != nil {
-			return err
-		}
-		if err := cleanListingCache(session.ShopId); err != nil {
-			return err
-		}
-
-		if err := tx.Commit().Error; err != nil {
-			return err
-		}
 		respondNoContent(w)
 		return nil
 	})
@@ -105,20 +115,22 @@ func HandleUnitDelete(db *gorm.DB,
 			return errs.Respond(w)
 		}
 
-		tx := db.WithContext(ctx).Begin()
-		defer tx.Rollback()
-		if err := tx.Delete(&unit).Error; err != nil {
+		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := tx.Delete(&unit).Error; err != nil {
+				return err
+			}
+			if err := cleanInstanceCache(session.ResId); err != nil {
+				return err
+			}
+			if err := cleanListingCache(session.ShopId); err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
-		if err := cleanInstanceCache(session.ResId); err != nil {
-			return err
-		}
-		if err := cleanListingCache(session.ShopId); err != nil {
-			return err
-		}
-		if err := tx.Commit().Error; err != nil {
-			return err
-		}
+
 		respondNoContent(w)
 		return nil
 	})

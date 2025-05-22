@@ -1,15 +1,15 @@
 package main
 
 import (
+	"linn221/shop/config"
 	"linn221/shop/models"
-	"linn221/shop/services"
 
 	"gorm.io/gorm"
 )
 
 type Container struct {
 	DB             *gorm.DB
-	Cache          services.CacheService
+	Cache          *config.RedisCache
 	ImageDirectory string
 	Readers        *models.ReadServices
 }

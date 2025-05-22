@@ -106,11 +106,12 @@ func (vr ruleExists) CountResults(dbCtx *gorm.DB, count *int64) *ServiceError {
 	return nil
 }
 
-func NewExistsRule(table string, id interface{}, message string) ruleExists {
+func NewExistsRule(table string, id interface{}, message string, filter *HasFilter) ruleExists {
 	return ruleExists{
-		table:   table,
-		id:      id,
-		message: message,
+		table:     table,
+		id:        id,
+		message:   message,
+		HasFilter: filter,
 	}
 }
 

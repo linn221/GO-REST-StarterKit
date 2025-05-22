@@ -14,7 +14,11 @@ type NewCategory struct {
 }
 
 func (input *NewCategory) validate(db *gorm.DB, shopId string, id int) *ServiceError {
-	return Validate(db, NewUniqueRule("categories", "name", input.Name.String(), id, "duplicate category name", NewShopFilter(shopId)))
+	shopFilter := NewShopFilter(shopId)
+	return Validate(db,
+		NewExistsRule("categories", id, "category not found", shopFilter).When(id > 0),
+		NewUniqueRule("categories", "name", input.Name.String(), id, "duplicate category name", NewShopFilter(shopId)),
+	)
 }
 
 func HandleCategoryCreate(db *gorm.DB, cleanListingCache services.CleanListingCache) http.HandlerFunc {
