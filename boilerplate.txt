@@ -3,7 +3,7 @@
 func HandleResourceCreate(db *gorm.DB,
 	cleanListingCache services.CleanListingCache,
 ) http.HandlerFunc {
-	return CreateHandler(func(w http.ResponseWriter, r *http.Request, session *CreateSession[NewResource]) error {
+	return CreateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewResource) error {
 
 		w.WriteHeader(http.StatusCreated)
 		return nil
@@ -14,7 +14,7 @@ func HandleResourceUpdate(db *gorm.DB,
 	cleanInstanceCache services.CleanInstanceCache,
 	cleanListingCache services.CleanListingCache,
 ) http.HandlerFunc {
-	return UpdateHandler(func(w http.ResponseWriter, r *http.Request, session *UpdateSession[NewResource]) error {
+	return UpdateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewResource) error {
 
 		respondNoContent(w)
 		return nil
@@ -25,7 +25,7 @@ func HandleResourceDelete(db *gorm.DB,
 	cleanInstanceCache services.CleanInstanceCache,
 	cleanListingCache services.CleanListingCache,
 ) http.HandlerFunc {
-	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session *DeleteSession) error {
+	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session Session) error {
 		respondNoContent(w)
 		return nil
 	})

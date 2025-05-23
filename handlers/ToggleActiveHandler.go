@@ -83,14 +83,24 @@ func ListInactiveHandler[Model any, Resource any](db *gorm.DB) http.HandlerFunc 
 
 		var results []Resource
 		var m Model
-		if err := db.WithContext(r.Context()).Model(&m).Where("is_active = 0 AND shop_id = ?", shopId).Find(&results).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				http.Error(w, "no inactive records", http.StatusNotFound)
-				return
-			}
+		err = db.WithContext(r.Context()).Model(&m).Where("is_active = 0 AND shop_id = ?", shopId).Find(&results).Error
+		finalErrHandle(w, err)
+
+		finalErrHandle(w,
+			respondOk(w, results),
+		)
+	}
+}
+
+func ListCustomInactiveHandler[Resource any](db *gorm.DB, fetch func(*gorm.DB, string) ([]Resource, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, shopId, err := myctx.GetIdsFromContext(r.Context())
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		results, err := fetch(db, shopId)
+		finalErrHandle(w, err)
 
 		finalErrHandle(w,
 			respondOk(w, results),

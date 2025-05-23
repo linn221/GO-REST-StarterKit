@@ -108,7 +108,7 @@ func HandleUnitDelete(db *gorm.DB,
 	cleanInstanceCache services.CleanInstanceCache,
 	cleanListingCache services.CleanListingCache,
 ) http.HandlerFunc {
-	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session *Session) error {
+	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session Session) error {
 		ctx := r.Context()
 		unit, errs := first[models.Unit](db.WithContext(ctx), session.ShopId, session.ResId)
 		if errs != nil {

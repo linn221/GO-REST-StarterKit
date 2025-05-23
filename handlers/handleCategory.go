@@ -98,7 +98,7 @@ func HandleCategoryDelete(db *gorm.DB,
 	cleanListingCache services.CleanListingCache,
 	cleanInstanceCache services.CleanInstanceCache,
 ) http.HandlerFunc {
-	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session *Session) error {
+	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session Session) error {
 		ctx := r.Context()
 		var category models.Category
 		if err := db.WithContext(ctx).Where("shop_id = ?", session.ShopId).First(&category, session.ResId).Error; err != nil {

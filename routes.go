@@ -57,6 +57,18 @@ func (app *App) Serve() {
 	authMux.HandleFunc("GET /units", handlers.DefaultListHandler(app.Readers.UnitListService))
 	authMux.HandleFunc("GET /units/inactive", handlers.ListInactiveHandler[models.Unit, models.UnitResource](app.DB))
 
+	// items
+	authMux.HandleFunc("POST /items", handlers.HandleItemCreate(app.DB, app.Readers.ItemListService.CleanCache))
+	authMux.HandleFunc("PUT /items/{id}", handlers.HandleItemUpdate(app.DB, app.Readers.ItemGetService.CleanCache, app.Readers.ItemListService.CleanCache))
+	authMux.HandleFunc("DELETE /items/{id}", handlers.HandleItemDelete(app.DB, app.Readers.ItemGetService.CleanCache, app.Readers.ItemListService.CleanCache))
+	authMux.HandleFunc("PATCH /items/{id}/toggle", handlers.HandleToggleActive[models.Item](app.DB,
+		app.Readers.ItemGetService.CleanCache,
+		app.Readers.ItemListService.CleanCache,
+	))
+	authMux.HandleFunc("GET /items/{id}", handlers.DefaultGetHandler(app.Readers.ItemGetService))
+	authMux.HandleFunc("GET /items", handlers.DefaultListHandler(app.Readers.ItemListService))
+	authMux.HandleFunc("GET /items/inactive", handlers.ListCustomInactiveHandler(app.DB, models.FetchInactiveItemResources))
+
 	mainMux.HandleFunc("POST /upload-single", handlers.HandleImageUploadSingle(app.DB, app.ImageDirectory))
 	mainMux.HandleFunc("POST /register", handlers.Register(app.DB))
 	mainMux.HandleFunc("POST /login", handlers.Login(app.DB, app.Cache))

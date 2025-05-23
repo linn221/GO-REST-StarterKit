@@ -111,34 +111,71 @@ type customGetService[T Resource] struct {
 }
 
 func (service *customGetService[T]) Get(shopId string, id int) (*T, bool, error) {
-	var result T
+	var cacheValue CacheValue[T]
 
 	redisKey := service.cachePrefix + ":" + fmt.Sprint(id)
-	exists, err := service.cache.GetObject(redisKey, &result)
+	exists, err := service.cache.GetObject(redisKey, &cacheValue)
 	if err != nil {
 		return nil, false, err
 	}
 
 	if !exists {
-		result, err = service.fetch(service.db, id)
+		result, err := service.fetch(service.db, id)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				return nil, false, nil
 			}
 			return nil, false, err
 		}
-		if err := service.cache.SetObject(redisKey, &result, service.cacheLength); err != nil {
+		cacheValue = CacheValue[T]{Object: result, ShopId: result.GetShopId()}
+		if err := service.cache.SetObject(redisKey, &cacheValue, service.cacheLength); err != nil {
 			return nil, false, err
 		}
 	}
-	if result.GetShopId() != shopId {
+
+	if cacheValue.ShopId != shopId {
 		return nil, false, nil // only saying not found if belongs to another shop
 	}
 
-	return &result, true, nil
+	return &cacheValue.Object, true, nil
 }
 func (service *customGetService[T]) CleanCache(id int) error {
 	return service.cache.RemoveKey(service.cachePrefix + ":" + fmt.Sprint(id))
+}
+
+// only listing active ones
+type customListService[T any] struct {
+	db          *gorm.DB
+	cache       services.CacheService
+	cachePrefix string
+	cacheLength time.Duration
+	fetch       func(db *gorm.DB, shopId string) ([]T, error)
+}
+
+func (service *customListService[T]) List(shopId string) ([]T, error) {
+	var results []T
+
+	key := service.cachePrefix + ":" + shopId
+	exists, err := service.cache.GetObject(key, &results)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		results, err = service.fetch(service.db, shopId)
+		if err != nil {
+			return nil, err
+		}
+		if err := service.cache.SetObject(key, &results, service.cacheLength); err != nil {
+			return nil, err
+		}
+	}
+
+	return results, nil
+}
+
+// clear cache
+func (service *customListService[ResponseT]) CleanCache(shopId string) error {
+	return service.cache.RemoveKey(service.cachePrefix + ":" + shopId)
 }
 
 // type customListService[T any] struct {

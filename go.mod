@@ -22,6 +22,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/redis/go-redis/v9 v9.8.0
+	github.com/shopspring/decimal v1.4.0
 	golang.org/x/crypto v0.38.0
 	golang.org/x/text v0.25.0 // indirect
 	gorm.io/driver/mysql v1.5.7
