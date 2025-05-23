@@ -1,8 +1,7 @@
-package config
+package middlewares
 
 import (
 	"fmt"
-	"linn221/shop/myctx"
 	"net/http"
 	"time"
 
@@ -10,7 +9,7 @@ import (
 )
 
 // using closure for dependencies
-func NewRateLimiter(client *redis.Client, window time.Duration, limit int64, label string) func(http.Handler) http.Handler {
+func NewRateLimiter(client *redis.Client, window time.Duration, limit int64, label string, getLimitBy func(r *http.Request) (string, error)) func(http.Handler) http.Handler {
 	// Get the IP address or user identifier from the request.
 	if label == "" {
 		panic("label must not be an empty string")
@@ -21,13 +20,12 @@ func NewRateLimiter(client *redis.Client, window time.Duration, limit int64, lab
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
-			userId, _, err := myctx.GetIdsFromContext(ctx)
+			limitBy, err := getLimitBy(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-
-			key := fmt.Sprintf("%s:%d", label, userId) // using userId for convenience
+			key := label + ":" + limitBy // using userId for convenience
 			// Check if the key exists in Redis.
 			exists, err := client.Exists(r.Context(), key).Result()
 			if err != nil {

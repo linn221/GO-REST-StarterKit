@@ -3,6 +3,8 @@ package utils
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"net"
+	"net/http"
 	"strings"
 )
 
@@ -95,4 +97,25 @@ func HashString(s string) string {
 	h.Write([]byte(s))
 	sha1_hash := hex.EncodeToString(h.Sum(nil))
 	return sha1_hash
+}
+
+// ai generated one
+func GetClientIP(r *http.Request) string {
+	// Check X-Forwarded-For header (may contain multiple IPs)
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		// Return the first IP in the list
+		return strings.Split(fwd, ",")[0]
+	}
+
+	// Fallback to X-Real-IP
+	if realIP := r.Header.Get("X-Real-Ip"); realIP != "" {
+		return realIP
+	}
+
+	// Fallback to RemoteAddr
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr // return as is if parsing fails
+	}
+	return host
 }

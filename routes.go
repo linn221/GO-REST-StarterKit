@@ -1,15 +1,17 @@
 package main
 
 import (
-	"linn221/shop/config"
+	"fmt"
 	"linn221/shop/handlers"
 	"linn221/shop/middlewares"
 	"linn221/shop/models"
+	"linn221/shop/myctx"
+	"linn221/shop/utils"
 	"net/http"
 	"time"
 )
 
-func myRouter(c *Container) *http.ServeMux {
+func myRouter(c *Container) http.Handler {
 
 	mainMux := http.NewServeMux()
 	authMux := http.NewServeMux()
@@ -18,8 +20,20 @@ func myRouter(c *Container) *http.ServeMux {
 	authMux.HandleFunc("POST /update-profile", handlers.UpdateUserInfo(c.DB))
 
 	// rate Limit
-	// rate limiting crud endpoints
-	resourceRateLimit := config.NewRateLimiter(c.Cache.GetClient(), time.Minute*5, 2, "r")
+	// rate limiting crud endpoints by userId
+	resourceRateLimit := middlewares.NewRateLimiter(c.Cache.GetClient(), time.Minute*5, 2000, "r", func(r *http.Request) (string, error) {
+		ctx := r.Context()
+		userId, _, err := myctx.GetIdsFromContext(ctx)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprint(userId), nil
+	})
+	// rate limit by IP address for all routes
+	generalRateLimit := middlewares.NewRateLimiter(c.Cache.GetClient(), time.Minute*2, 300, "g", func(r *http.Request) (string, error) {
+		ip := utils.GetClientIP(r)
+		return ip, nil
+	})
 
 	//categories
 	authMux.HandleFunc("POST /categories", handlers.HandleCategoryCreate(c.DB,
@@ -62,6 +76,7 @@ func myRouter(c *Container) *http.ServeMux {
 	mainMux.HandleFunc("POST /upload-single", handlers.HandleImageUploadSingle(c.DB, c.ImageDirectory))
 	mainMux.HandleFunc("POST /register", handlers.Register(c.DB))
 	mainMux.HandleFunc("POST /login", handlers.Login(c.DB, c.Cache))
-	mainMux.Handle("/api/", http.StripPrefix("/api", resourceRateLimit(middlewares.Auth(authMux))))
-	return mainMux
+	mainMux.Handle("/api/", http.StripPrefix("/api", middlewares.Auth(resourceRateLimit(authMux))))
+
+	return generalRateLimit(mainMux)
 }
