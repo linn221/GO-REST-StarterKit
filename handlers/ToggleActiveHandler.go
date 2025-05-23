@@ -71,3 +71,29 @@ func HandleToggleActive[T services.HasIsActiveStatus](db *gorm.DB,
 		respondNoContent(w)
 	}
 }
+
+// using gorm's smart scan
+func ListInactiveHandler[Model any, Resource any](db *gorm.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, shopId, err := myctx.GetIdsFromContext(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var results []Resource
+		var m Model
+		if err := db.WithContext(r.Context()).Model(&m).Where("is_active = 0 AND shop_id = ?", shopId).Find(&results).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				http.Error(w, "no inactive records", http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		finalErrHandle(w,
+			respondOk(w, results),
+		)
+	}
+}

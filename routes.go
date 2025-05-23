@@ -35,6 +35,7 @@ func (app *App) Serve() {
 	))
 	authMux.HandleFunc("GET /categories/{id}", handlers.DefaultGetHandler(app.Readers.CategoryGetService))
 	authMux.HandleFunc("GET /categories", handlers.DefaultListHandler(app.Readers.CategoryListService))
+	authMux.HandleFunc("GET /categories/inactive", handlers.ListInactiveHandler[models.Category, models.CategoryResource](app.DB))
 
 	//units
 	authMux.HandleFunc("POST /units", handlers.HandleUnitCreate(app.DB,
@@ -54,6 +55,7 @@ func (app *App) Serve() {
 	))
 	authMux.HandleFunc("GET /units/{id}", handlers.DefaultGetHandler(app.Readers.UnitGetService))
 	authMux.HandleFunc("GET /units", handlers.DefaultListHandler(app.Readers.UnitListService))
+	authMux.HandleFunc("GET /units/inactive", handlers.ListInactiveHandler[models.Unit, models.UnitResource](app.DB))
 
 	mainMux.HandleFunc("POST /upload-single", handlers.HandleImageUploadSingle(app.DB, app.ImageDirectory))
 	mainMux.HandleFunc("POST /register", handlers.Register(app.DB))
