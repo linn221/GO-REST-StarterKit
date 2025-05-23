@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"linn221/shop/config"
 	"linn221/shop/middlewares"
 	"linn221/shop/models"
-	"log"
+	"linn221/shop/myctx"
+	"linn221/shop/utils"
 	"net/http"
 	"time"
 
@@ -15,7 +17,6 @@ import (
 func main() {
 
 	// godotenv.Load(".env")
-	port := "8080"
 	// if p := os.Getenv("API_PORT"); p != "" {
 	// 	port = p
 	// }
@@ -24,23 +25,32 @@ func main() {
 	db = config.ConnectDB()
 	redisCache := config.ConnectRedis(ctx)
 	dir := config.GetImageDirectory()
+	port := config.GetPortNo()
 	readServices := models.NewReaders(db, redisCache)
 
-	container := &Container{
-		DB:             db,
-		Cache:          redisCache,
-		ImageDirectory: dir,
-		Readers:        readServices,
+	// rate limiting crud endpoints by userId
+	resourceRateLimit := middlewares.NewRateLimiter(redisCache.GetClient(), time.Minute*5, 2000, "r", func(r *http.Request) (string, error) {
+		ctx := r.Context()
+		userId, _, err := myctx.GetIdsFromContext(ctx)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprint(userId), nil
+	})
+	// rate limit by IP address for all routes
+	generalRateLimit := middlewares.NewRateLimiter(redisCache.GetClient(), time.Minute*2, 300, "g", func(r *http.Request) (string, error) {
+		ip := utils.GetClientIP(r)
+		return ip, nil
+	})
+	// serves http server
+	app := &App{
+		DB:                db,
+		Cache:             redisCache,
+		ImageDirectory:    dir,
+		Readers:           readServices,
+		Port:              port,
+		ResourceRateLimit: resourceRateLimit,
+		GeneralRateLimit:  generalRateLimit,
 	}
-
-	mux := myRouter(container)
-	srv := http.Server{
-		Addr:         ":" + port,
-		Handler:      middlewares.Default(mux, redisCache),
-		WriteTimeout: time.Second * 30,
-		ReadTimeout:  time.Second * 10,
-		IdleTimeout:  time.Minute,
-	}
-
-	log.Fatal(srv.ListenAndServe())
+	app.Serve()
 }

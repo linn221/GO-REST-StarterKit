@@ -19,6 +19,7 @@ import (
 const SearchLimit = 10
 
 var _UPLOAD_DIR string
+var _PORT string
 
 func ConnectDB() *gorm.DB {
 	// Load env from .env
@@ -38,6 +39,11 @@ func ConnectDB() *gorm.DB {
 	if _UPLOAD_DIR == "" {
 		panic("set UPLOAD_DIR in .env")
 	}
+	_PORT = os.Getenv("API_PORT")
+	if _PORT == "" {
+		_PORT = "8080"
+	}
+
 	fmt.Println(_UPLOAD_DIR)
 	return connectDatabase()
 	// connectRedis()
@@ -45,6 +51,10 @@ func ConnectDB() *gorm.DB {
 
 func GetImageDirectory() string {
 	return _UPLOAD_DIR
+}
+
+func GetPortNo() string {
+	return _PORT
 }
 func connectDatabase() *gorm.DB {
 	databaseConfig := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?multiStatements=true&parseTime=true",
