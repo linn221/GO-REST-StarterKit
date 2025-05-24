@@ -53,7 +53,7 @@ func NewReaders(db *gorm.DB, cache services.CacheService) *ReadServices {
 			cacheLength: time.Hour * 127,
 			fetch: func(db *gorm.DB, id int) (ItemDetailResource, error) {
 				var item Item
-				if err := db.Preload("Category", "Unit").First(&item, id).Error; err != nil {
+				if err := db.Preload("Category").Preload("Unit").First(&item, id).Error; err != nil {
 					return ItemDetailResource{}, err
 				}
 				result := ItemDetailResource{
@@ -63,6 +63,8 @@ func NewReaders(db *gorm.DB, cache services.CacheService) *ReadServices {
 					PurchasePrice: item.PurchasePrice,
 					Description:   item.Description,
 				}
+				result.ShopId = item.ShopId
+				result.IsActive = item.IsActive
 				result.Category.Id = item.Category.Id
 				result.Category.Name = item.Category.Name
 				result.Category.IsActive = item.Category.IsActive

@@ -61,9 +61,9 @@ func HandleUnitCreate(db *gorm.DB,
 }
 
 func HandleUnitUpdate(db *gorm.DB,
-	cleanInstanceCache services.CleanInstanceCache,
-	cleanListingCache services.CleanListingCache,
+	cleanCache func(db *gorm.DB, shopId string, id int) error,
 ) http.HandlerFunc {
+
 	return UpdateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewUnit) error {
 
 		ctx := r.Context()
@@ -87,10 +87,7 @@ func HandleUnitUpdate(db *gorm.DB,
 				return err
 			}
 
-			if err := cleanInstanceCache(session.ResId); err != nil {
-				return err
-			}
-			if err := cleanListingCache(session.ShopId); err != nil {
+			if err := cleanCache(db.WithContext(ctx), session.ShopId, session.ResId); err != nil {
 				return err
 			}
 			return nil
@@ -105,8 +102,7 @@ func HandleUnitUpdate(db *gorm.DB,
 }
 
 func HandleUnitDelete(db *gorm.DB,
-	cleanInstanceCache services.CleanInstanceCache,
-	cleanListingCache services.CleanListingCache,
+	cleanCache func(db *gorm.DB, shopId string, id int) error,
 ) http.HandlerFunc {
 	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session Session) error {
 		ctx := r.Context()
@@ -115,14 +111,16 @@ func HandleUnitDelete(db *gorm.DB,
 			return errs.Respond(w)
 		}
 
+		if errs := Validate(db.WithContext(ctx),
+			NewNoResultRule("units", "unit has been used in items", NewFilter("unit_id = ?", session.ResId)),
+		); errs != nil {
+			return errs.Respond(w)
+		}
 		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := tx.Delete(&unit).Error; err != nil {
 				return err
 			}
-			if err := cleanInstanceCache(session.ResId); err != nil {
-				return err
-			}
-			if err := cleanListingCache(session.ShopId); err != nil {
+			if err := cleanCache(db.WithContext(ctx), session.ShopId, session.ResId); err != nil {
 				return err
 			}
 			return nil

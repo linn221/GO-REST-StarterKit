@@ -4,22 +4,32 @@ import (
 	"linn221/shop/models"
 	"linn221/shop/services"
 	"net/http"
+	"strconv"
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
 type NewItem struct {
-	Name          inputString     `json:"name" validate:"required,min=2,max=100"`
-	Description   *optionalString `json:"description" validate:"omitempty,max=500"`
-	CategoryId    int             `json:"category_id" validate:"required,number,gte=1"`
-	UnitId        int             `json:"unit_id" validate:"required,number,gte=1"`
-	SalesPrice    decimal.Decimal `json:"sales_price" validate:"required,number"`
-	PurchasePrice decimal.Decimal `json:"purchase_price" validate:"requried,number"`
+	Name          inputString      `json:"name" validate:"required,min=2,max=100"`
+	Description   *optionalString  `json:"description" validate:"omitempty,max=500"`
+	CategoryId    int              `json:"category_id" validate:"required,number,gte=1"`
+	UnitId        int              `json:"unit_id" validate:"required,number,gte=1"`
+	SalesPrice    *decimal.Decimal `json:"sales_price" validate:"required,number,gte=1"`
+	PurchasePrice *decimal.Decimal `json:"purchase_price" validate:"required,number,gte=1"`
 }
 
 func (input *NewItem) validate(db *gorm.DB, shopId string, id int) *ServiceError {
-	panic("not implemented") //2d
+	shopFilter := NewShopFilter(shopId)
+	if err := Validate(db,
+		NewExistsRule("items", id, "item not found", shopFilter).When(id > 0),
+		NewUniqueRule("items", "name", input.Name, id, "duplicate item name", shopFilter),
+		NewExistsRule("units", input.UnitId, "unit not found", shopFilter),
+		NewExistsRule("categories", input.CategoryId, "category not found", shopFilter),
+	); err != nil {
+		return err
+	}
+	return nil
 }
 
 func HandleItemCreate(db *gorm.DB,
@@ -36,8 +46,8 @@ func HandleItemCreate(db *gorm.DB,
 			Description:   input.Description.StringPtr(),
 			CategoryId:    input.CategoryId,
 			UnitId:        input.UnitId,
-			SalesPrice:    input.SalesPrice,
-			PurchasePrice: input.PurchasePrice,
+			SalesPrice:    *input.SalesPrice,
+			PurchasePrice: *input.PurchasePrice,
 		}
 		item.ShopId = session.ShopId
 
@@ -137,6 +147,76 @@ func HandleItemDelete(db *gorm.DB,
 		}
 
 		respondNoContent(w)
+		return nil
+	})
+}
+
+func parseItemSearch(r *http.Request) (*models.ItemSearch, error) {
+	var search models.ItemSearch
+	var err error
+	if s := r.URL.Query().Get("search"); s != "" {
+		search.Search = s
+	}
+	if s := r.URL.Query().Get("category_id"); s != "" {
+		search.CategoryId, err = strconv.Atoi(s)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if s := r.URL.Query().Get("unit_id"); s != "" {
+		search.UnitId, err = strconv.Atoi(s)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if min := r.URL.Query().Get("sales_price_min"); min != "" {
+		salesPriceMin, err := decimal.NewFromString(min)
+		if err != nil {
+			return nil, err
+		}
+		search.SalesPriceMin = &salesPriceMin
+		max := r.URL.Query().Get("sales_price_max")
+		if max != "" {
+			salesPriceMax, err := decimal.NewFromString(max)
+			if err != nil {
+				return nil, err
+			}
+			search.SalesPriceMax = &salesPriceMax
+		}
+	}
+
+	if min := r.URL.Query().Get("purchase_price_min"); min != "" {
+		purchasePriceMin, err := decimal.NewFromString(min)
+		if err != nil {
+			return nil, err
+		}
+		search.PurchasePriceMin = &purchasePriceMin
+		max := r.URL.Query().Get("purchase_price_max")
+		if max != "" {
+			purchasePriceMax, err := decimal.NewFromString(max)
+			if err != nil {
+				return nil, err
+			}
+			search.PurchasePriceMax = &purchasePriceMax
+		}
+	}
+	return &search, nil
+}
+
+func HandleItemIndex(db *gorm.DB) http.HandlerFunc {
+	return DefaultHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession) error {
+		search, err := parseItemSearch(r)
+		if err != nil {
+			return respondClientError(w, err.Error())
+		}
+
+		//2d cache results
+		results, err := models.SearchItems(db.WithContext(r.Context()), session.ShopId, search)
+		if err != nil {
+			return err
+		}
+		respondOk(w, results)
 		return nil
 	})
 }

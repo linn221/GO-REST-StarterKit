@@ -9,9 +9,44 @@ import (
 	"gorm.io/gorm"
 )
 
+// using gorm's smart scan
+func ListInactiveHandler[Model any, Resource any](db *gorm.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, shopId, err := myctx.GetIdsFromContext(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var results []Resource
+		var m Model
+		err = db.WithContext(r.Context()).Model(&m).Where("is_active = 0 AND shop_id = ?", shopId).Find(&results).Error
+		finalErrHandle(w, err)
+
+		finalErrHandle(w,
+			respondOk(w, results),
+		)
+	}
+}
+
+func ListCustomInactiveHandler[Resource any](db *gorm.DB, fetch func(*gorm.DB, string) ([]Resource, error)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, shopId, err := myctx.GetIdsFromContext(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		results, err := fetch(db, shopId)
+		finalErrHandle(w, err)
+
+		finalErrHandle(w,
+			respondOk(w, results),
+		)
+	}
+}
+
 func HandleToggleActive[T services.HasIsActiveStatus](db *gorm.DB,
-	cleanInstanceCache services.CleanInstanceCache,
-	cleanListingCache services.CleanListingCache,
+	cleanCache func(*gorm.DB, string, int) error,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -54,11 +89,7 @@ func HandleToggleActive[T services.HasIsActiveStatus](db *gorm.DB,
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			if err := cleanInstanceCache(resId); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			if err := cleanListingCache(shopId); err != nil {
+			if err := cleanCache(db.WithContext(ctx), shopId, resId); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -69,41 +100,5 @@ func HandleToggleActive[T services.HasIsActiveStatus](db *gorm.DB,
 			}
 		}
 		respondNoContent(w)
-	}
-}
-
-// using gorm's smart scan
-func ListInactiveHandler[Model any, Resource any](db *gorm.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		_, shopId, err := myctx.GetIdsFromContext(r.Context())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		var results []Resource
-		var m Model
-		err = db.WithContext(r.Context()).Model(&m).Where("is_active = 0 AND shop_id = ?", shopId).Find(&results).Error
-		finalErrHandle(w, err)
-
-		finalErrHandle(w,
-			respondOk(w, results),
-		)
-	}
-}
-
-func ListCustomInactiveHandler[Resource any](db *gorm.DB, fetch func(*gorm.DB, string) ([]Resource, error)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		_, shopId, err := myctx.GetIdsFromContext(r.Context())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		results, err := fetch(db, shopId)
-		finalErrHandle(w, err)
-
-		finalErrHandle(w,
-			respondOk(w, results),
-		)
 	}
 }

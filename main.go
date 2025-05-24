@@ -10,19 +10,12 @@ import (
 	"linn221/shop/utils"
 	"net/http"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 func main() {
 
-	// godotenv.Load(".env")
-	// if p := os.Getenv("API_PORT"); p != "" {
-	// 	port = p
-	// }
 	ctx := context.Background()
-	var db *gorm.DB
-	db = config.ConnectDB()
+	db := config.ConnectDB()
 	redisCache := config.ConnectRedis(ctx)
 	dir := config.GetImageDirectory()
 	port := config.GetPortNo()

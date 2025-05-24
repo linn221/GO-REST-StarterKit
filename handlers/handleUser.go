@@ -80,7 +80,7 @@ type MyInfo struct {
 	PhoneNo  string `json:"phone_no"`
 }
 
-func Me(db *gorm.DB) http.HandlerFunc {
+func Me(db *gorm.DB) http.HandlerFunc { // only place where shop_id should be included
 
 	return DefaultHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession) error {
 		var user models.User

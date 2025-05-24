@@ -8,7 +8,6 @@ import (
 
 type Rule interface {
 	Init() bool
-	ApplyFilter(*gorm.DB)
 	CountResults(*gorm.DB, *int64) *ServiceError
 }
 
@@ -18,7 +17,6 @@ func Validate(db *gorm.DB, rules ...Rule) *ServiceError {
 		if ok := rule.Init(); !ok {
 			continue
 		}
-		rule.ApplyFilter(db)
 		err := rule.CountResults(db, &count)
 		if err != nil {
 			return err
@@ -34,7 +32,6 @@ func ValidateInBatch(db *gorm.DB, rules ...Rule) []*ServiceError {
 		if ok := rule.Init(); !ok {
 			continue
 		}
-		rule.ApplyFilter(db)
 		err := rule.CountResults(db, &count)
 		if err != nil {
 			errors = append(errors, err)
@@ -96,7 +93,9 @@ func (vr ruleExists) Init() bool {
 }
 
 func (vr ruleExists) CountResults(dbCtx *gorm.DB, count *int64) *ServiceError {
-	if err := dbCtx.Table(vr.table).Where("id = ?", vr.id).Count(count).Error; err != nil {
+	dbCtx = dbCtx.Table(vr.table).Where("id = ?", vr.id)
+	vr.ApplyFilter(dbCtx)
+	if err := dbCtx.Count(count).Error; err != nil {
 		return systemErr(err)
 	}
 	if *count <= 0 {
@@ -135,16 +134,19 @@ func (r RuleMassExists[ID]) CountResults(dbCtx *gorm.DB, count *int64) *ServiceE
 		if duplicates > 0 {
 			return clientErr("duplicate ids for " + r.Table)
 		}
-		err := dbCtx.Table(r.Table).Where("id IN ?", ids).Count(count).Error
+		dbCtx = dbCtx.Table(r.Table).Where("id IN ?", ids)
+		err := dbCtx.Count(count).Error
 		if err != nil {
 			return systemErr(err)
 		}
 		if *count != int64(len(ids)) {
 			return clientErr(r.Message)
 		}
+
 	} else {
 		uniqIds := utils.UniqueSlice(r.Ids)
-		err := dbCtx.Table(r.Table).Where("id IN ?", uniqIds).Count(count).Error
+		dbCtx = dbCtx.Table(r.Table).Where("id IN ?", uniqIds)
+		err := dbCtx.Count(count).Error
 		if err != nil {
 			return systemErr(err)
 		}
@@ -193,6 +195,7 @@ func (r ruleUnique) CountResults(dbCtx *gorm.DB, count *int64) *ServiceError {
 	if r.exceptId > 0 {
 		dbCtx.Where("id != ?", r.exceptId)
 	}
+	r.ApplyFilter(dbCtx)
 	err := dbCtx.Count(count).Error
 	if err != nil {
 		return systemErr(err)

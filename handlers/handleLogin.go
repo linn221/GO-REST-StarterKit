@@ -48,3 +48,14 @@ func Login(db *gorm.DB, cache services.CacheService) http.HandlerFunc {
 		})
 	}
 }
+func Logout(db *gorm.DB, cache services.CacheService) http.HandlerFunc {
+	return DefaultHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession) error {
+		token := r.Header.Get("Token")
+		if err := services.RemoveSession(token, cache); err != nil {
+			return err
+		}
+
+		respondNoContent(w)
+		return nil
+	})
+}

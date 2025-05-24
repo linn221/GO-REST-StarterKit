@@ -54,8 +54,7 @@ func HandleCategoryCreate(db *gorm.DB, cleanListingCache services.CleanListingCa
 }
 
 func HandleCategoryUpdate(db *gorm.DB,
-	cleanListingCache services.CleanListingCache,
-	cleanInstanceCache services.CleanInstanceCache,
+	cleanCache func(db *gorm.DB, shopId string, id int) error,
 ) http.HandlerFunc {
 	return UpdateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewCategory) error {
 		ctx := r.Context()
@@ -77,10 +76,7 @@ func HandleCategoryUpdate(db *gorm.DB,
 			if err := tx.Model(&category).Updates(updates).Error; err != nil {
 				return err
 			}
-			if err := cleanInstanceCache(session.ResId); err != nil {
-				return err
-			}
-			if err := cleanListingCache(session.ShopId); err != nil {
+			if err := cleanCache(db.WithContext(ctx), session.ShopId, session.ResId); err != nil {
 				return err
 			}
 			return nil
@@ -95,8 +91,7 @@ func HandleCategoryUpdate(db *gorm.DB,
 }
 
 func HandleCategoryDelete(db *gorm.DB,
-	cleanListingCache services.CleanListingCache,
-	cleanInstanceCache services.CleanInstanceCache,
+	cleanCache func(*gorm.DB, string, int) error,
 ) http.HandlerFunc {
 	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session Session) error {
 		ctx := r.Context()
@@ -108,19 +103,16 @@ func HandleCategoryDelete(db *gorm.DB,
 			return err
 		}
 
-		// if errs := Validate(db.WithContext(ctx),
-		// 	NewNoResultRule("items", "category has been used in items", NewFilter("category_id = ?", session.ResId)),
-		// ); errs != nil {
-		// 	return errs.Respond(w)
-		// }
+		if errs := Validate(db.WithContext(ctx),
+			NewNoResultRule("items", "category has been used in items", NewFilter("category_id = ?", session.ResId)),
+		); errs != nil {
+			return errs.Respond(w)
+		}
 		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := tx.Delete(&category).Error; err != nil {
 				return err
 			}
-			if err := cleanInstanceCache(session.ResId); err != nil {
-				return err
-			}
-			if err := cleanListingCache(session.ShopId); err != nil {
+			if err := cleanCache(db.WithContext(ctx), session.ShopId, session.ResId); err != nil {
 				return err
 			}
 			return nil
