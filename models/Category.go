@@ -1,6 +1,10 @@
 package models
 
 import (
+	"context"
+	"linn221/shop/services"
+	"linn221/shop/validate"
+
 	"gorm.io/gorm"
 )
 
@@ -25,6 +29,98 @@ type CategoryDetailResource struct {
 	Description *string `json:"description"`
 	HasIsActive
 	HasShopId
+}
+
+type CategoryService struct {
+	db     *gorm.DB
+	getter services.Getter[CategoryDetailResource]
+	lister services.Lister[CategoryResource]
+}
+
+func (input *Category) validate(db *gorm.DB, shopId string, id int) *services.ServiceError {
+	shopFilter := validate.NewShopFilter(shopId)
+	return validate.Validate(db,
+		validate.NewExistsRule("categories", id, "category not found", shopFilter).When(id > 0),
+		validate.NewUniqueRule("categories", "name", input.Name, id, "duplicate category name", validate.NewShopFilter(shopId)),
+	)
+}
+
+func NewCategoryService(db *gorm.DB, cache services.CacheService) *CategoryService {
+	return &CategoryService{
+		db: db,
+		getter: &defaultGetService[CategoryDetailResource]{
+			db:          db,
+			cache:       cache,
+			table:       "categories",
+			cachePrefix: "Category",
+			cacheLength: forever,
+		},
+		lister: &defaultListService[CategoryResource]{
+			db:          db,
+			cache:       cache,
+			table:       "categories",
+			cachePrefix: "CategoryList",
+			cacheLength: forever,
+		},
+	}
+}
+
+func (s *CategoryService) Store(ctx context.Context, input *Category, shopId string) (*Category, *services.ServiceError) {
+	e := input.validate(s.db.WithContext(ctx), shopId, 0)
+	if e != nil {
+		return nil, e
+	}
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&input).Error; err != nil {
+			return err
+		}
+		if err := s.lister.CleanCache(shopId); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, services.SystemErr(err)
+	}
+
+	return input, nil
+}
+
+func (s *CategoryService) Update(ctx context.Context, input *Category, id int, shopId string) (*Category, *services.ServiceError) {
+
+	e := input.validate(s.db.WithContext(ctx), shopId, 0)
+	if e != nil {
+		return nil, e
+	}
+
+	category, e := first[Category](s.db.WithContext(ctx), shopId, id)
+	if e != nil {
+		return nil, e
+	}
+
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, services.SystemErr(err)
+	}
+}
+
+func (s *CategoryService) Delete(ctx context.Context, id int, shopId int) (*Category, *services.ServiceError) {
+	panic("2d")
+
+}
+
+func (s *CategoryService) Get(ctx context.Context, id int, shopId string) (*CategoryDetailResource, bool, error) {
+	return s.getter.Get(shopId, id)
+}
+
+func (s *CategoryService) List(ctx context.Context, shopId string) ([]CategoryResource, error) {
+	return s.lister.List(shopId)
 }
 
 // func (cat *Category) AfterCreate(db *gorm.DB) error {

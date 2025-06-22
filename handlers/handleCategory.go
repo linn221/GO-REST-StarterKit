@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"linn221/shop/models"
-	"linn221/shop/services"
 	"net/http"
 
 	"gorm.io/gorm"
@@ -13,20 +12,9 @@ type NewCategory struct {
 	Description *optionalString `json:"description" validate:"omitempty,max=1000"`
 }
 
-func (input *NewCategory) validate(db *gorm.DB, shopId string, id int) *ServiceError {
-	shopFilter := NewShopFilter(shopId)
-	return Validate(db,
-		NewExistsRule("categories", id, "category not found", shopFilter).When(id > 0),
-		NewUniqueRule("categories", "name", input.Name.String(), id, "duplicate category name", NewShopFilter(shopId)),
-	)
-}
-
-func HandleCategoryCreate(db *gorm.DB, cleanListingCache services.CleanListingCache) http.HandlerFunc {
+func HandleCategoryCreate(categoryService *models.CategoryService) http.HandlerFunc {
 	return CreateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewCategory) error {
 		ctx := r.Context()
-		if errs := input.validate(db.WithContext(ctx), session.ShopId, 0); errs != nil {
-			return errs.Respond(w)
-		}
 
 		category := models.Category{
 			Name:        input.Name.String(),
@@ -34,16 +22,7 @@ func HandleCategoryCreate(db *gorm.DB, cleanListingCache services.CleanListingCa
 		}
 		category.ShopId = session.ShopId
 
-		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			if err := tx.Create(&category).Error; err != nil {
-				return err
-			}
-
-			if err := cleanListingCache(session.ShopId); err != nil {
-				return err
-			}
-			return nil
-		})
+		_, err := categoryService.Store(ctx, &category, session.ShopId)
 		if err != nil {
 			return err
 		}

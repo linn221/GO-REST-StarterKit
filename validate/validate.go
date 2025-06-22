@@ -1,6 +1,7 @@
-package handlers
+package validate
 
 import (
+	"linn221/shop/services"
 	"linn221/shop/utils"
 
 	"gorm.io/gorm"
@@ -8,10 +9,10 @@ import (
 
 type Rule interface {
 	Init() bool
-	CountResults(*gorm.DB, *int64) *ServiceError
+	CountResults(*gorm.DB, *int64) *services.ServiceError
 }
 
-func Validate(db *gorm.DB, rules ...Rule) *ServiceError {
+func Validate(db *gorm.DB, rules ...Rule) *services.ServiceError {
 	var count int64
 	for _, rule := range rules {
 		if ok := rule.Init(); !ok {
@@ -25,9 +26,9 @@ func Validate(db *gorm.DB, rules ...Rule) *ServiceError {
 	return nil
 }
 
-func ValidateInBatch(db *gorm.DB, rules ...Rule) []*ServiceError {
+func ValidateInBatch(db *gorm.DB, rules ...Rule) []*services.ServiceError {
 	var count int64
-	errors := make([]*ServiceError, 0)
+	errors := make([]*services.ServiceError, 0)
 	for _, rule := range rules {
 		if ok := rule.Init(); !ok {
 			continue
@@ -92,14 +93,14 @@ func (vr ruleExists) Init() bool {
 	return vr.do == nil || *vr.do
 }
 
-func (vr ruleExists) CountResults(dbCtx *gorm.DB, count *int64) *ServiceError {
+func (vr ruleExists) CountResults(dbCtx *gorm.DB, count *int64) *services.ServiceError {
 	dbCtx = dbCtx.Table(vr.table).Where("id = ?", vr.id)
 	vr.ApplyFilter(dbCtx)
 	if err := dbCtx.Count(count).Error; err != nil {
-		return systemErr(err)
+		return services.SystemErr(err)
 	}
 	if *count <= 0 {
-		return clientErr(vr.message)
+		return services.ClientErr(vr.message)
 	}
 
 	return nil
@@ -127,20 +128,20 @@ func (r RuleMassExists[ID]) Init() bool {
 	return len(r.Ids) > 0
 }
 
-func (r RuleMassExists[ID]) CountResults(dbCtx *gorm.DB, count *int64) *ServiceError {
+func (r RuleMassExists[ID]) CountResults(dbCtx *gorm.DB, count *int64) *services.ServiceError {
 
 	if r.NoDuplicateID {
 		ids, duplicates := utils.UniqueSliceWithDuplicateCount(r.Ids)
 		if duplicates > 0 {
-			return clientErr("duplicate ids for " + r.Table)
+			return services.ClientErr("duplicate ids for " + r.Table)
 		}
 		dbCtx = dbCtx.Table(r.Table).Where("id IN ?", ids)
 		err := dbCtx.Count(count).Error
 		if err != nil {
-			return systemErr(err)
+			return services.SystemErr(err)
 		}
 		if *count != int64(len(ids)) {
-			return clientErr(r.Message)
+			return services.ClientErr(r.Message)
 		}
 
 	} else {
@@ -148,10 +149,10 @@ func (r RuleMassExists[ID]) CountResults(dbCtx *gorm.DB, count *int64) *ServiceE
 		dbCtx = dbCtx.Table(r.Table).Where("id IN ?", uniqIds)
 		err := dbCtx.Count(count).Error
 		if err != nil {
-			return systemErr(err)
+			return services.SystemErr(err)
 		}
 		if *count != int64(len(uniqIds)) {
-			return clientErr(r.Message)
+			return services.ClientErr(r.Message)
 		}
 
 	}
@@ -190,7 +191,7 @@ func (rule ruleUnique) Init() bool {
 	return true
 }
 
-func (r ruleUnique) CountResults(dbCtx *gorm.DB, count *int64) *ServiceError {
+func (r ruleUnique) CountResults(dbCtx *gorm.DB, count *int64) *services.ServiceError {
 	dbCtx = dbCtx.Table(r.table).Where("`"+r.column+"`"+" = ?", r.value)
 	if r.exceptId > 0 {
 		dbCtx.Where("id != ?", r.exceptId)
@@ -198,11 +199,11 @@ func (r ruleUnique) CountResults(dbCtx *gorm.DB, count *int64) *ServiceError {
 	r.ApplyFilter(dbCtx)
 	err := dbCtx.Count(count).Error
 	if err != nil {
-		return systemErr(err)
+		return services.SystemErr(err)
 	}
 
 	if *count > 0 {
-		return clientErr(r.message)
+		return services.ClientErr(r.message)
 	}
 
 	return nil
@@ -245,14 +246,14 @@ func (vr noResultRule) Init() bool {
 	return vr.do == nil || *vr.do
 }
 
-func (vr noResultRule) CountResults(dbCtx *gorm.DB, count *int64) *ServiceError {
+func (vr noResultRule) CountResults(dbCtx *gorm.DB, count *int64) *services.ServiceError {
 	dbCtx = dbCtx.Table(vr.table)
 	vr.ApplyFilter(dbCtx)
 	if err := dbCtx.Count(count).Error; err != nil {
-		return systemErr(err)
+		return services.SystemErr(err)
 	}
 	if *count > 0 {
-		return clientErr(vr.message)
+		return services.ClientErr(vr.message)
 	}
 
 	return nil

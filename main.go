@@ -20,6 +20,7 @@ func main() {
 	dir := config.GetImageDirectory()
 	port := config.GetPortNo()
 	readServices := models.NewReaders(db, redisCache)
+	crudServices := models.NewServices(db, redisCache)
 
 	// rate limiting crud endpoints by userId
 	resourceRateLimit := middlewares.NewRateLimiter(redisCache.GetClient(), time.Minute*5, 2000, "r", func(r *http.Request) (string, error) {
@@ -39,6 +40,7 @@ func main() {
 	app := &App{
 		DB:                db,
 		Cache:             redisCache,
+		Services:          crudServices,
 		ImageDirectory:    dir,
 		Readers:           readServices,
 		Port:              port,

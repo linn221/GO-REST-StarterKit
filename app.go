@@ -13,6 +13,7 @@ type App struct {
 	Cache             *config.RedisCache
 	ImageDirectory    string
 	Readers           *models.ReadServices
+	Services          *models.CrudServices
 	Port              string
 	GeneralRateLimit  func(http.Handler) http.Handler
 	ResourceRateLimit func(http.Handler) http.Handler

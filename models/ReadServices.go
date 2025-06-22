@@ -85,3 +85,13 @@ func NewReaders(db *gorm.DB, cache services.CacheService) *ReadServices {
 		},
 	}
 }
+
+type CrudServices struct {
+	CategoryService *CategoryService
+}
+
+func NewServices(db *gorm.DB, cache services.CacheService) *CrudServices {
+	return &CrudServices{
+		CategoryService: NewCategoryService(db, cache),
+	}
+}

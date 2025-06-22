@@ -3,6 +3,7 @@ package handlers
 import (
 	"io"
 	"linn221/shop/models"
+	"linn221/shop/services"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -17,17 +18,17 @@ func HandleImageUploadSingle(db *gorm.DB, dir string) http.HandlerFunc {
 	var maxMemoryMB int64 = 10
 	formInputKey := "image"
 
-	return ServiceErrorHandler(func(w http.ResponseWriter, r *http.Request) *ServiceError {
+	return ServiceErrorHandler(func(w http.ResponseWriter, r *http.Request) *services.ServiceError {
 
 		// Limit upload size to 10MB
 		r.ParseMultipartForm(maxMemoryMB << 20) // 10MB
 
 		file, header, err := r.FormFile(formInputKey)
 		if err != nil {
-			return clientErr("Failed to read form file")
+			return services.ClientErr("Failed to read form file")
 		}
 		if header == nil {
-			return clientErr("Fileheader is nil")
+			return services.ClientErr("Fileheader is nil")
 		}
 
 		defer file.Close()
@@ -42,7 +43,7 @@ func HandleImageUploadSingle(db *gorm.DB, dir string) http.HandlerFunc {
 		uri := filepath.Join(dir, filename)
 		dst, err := os.Create(uri)
 		if err != nil {
-			return systemErrString("Failed to create file", err)
+			return services.SystemErrString("Failed to create file", err)
 		}
 
 		defer dst.Close()
@@ -51,34 +52,34 @@ func HandleImageUploadSingle(db *gorm.DB, dir string) http.HandlerFunc {
 			Url:  filename,
 			Size: header.Size,
 		}).Error; err != nil {
-			return systemErr(err)
+			return services.SystemErr(err)
 		}
 
 		// Copy uploaded file to destination
 		if _, err := io.Copy(dst, file); err != nil {
-			return systemErrString("Failed to save file", err)
+			return services.SystemErrString("Failed to save file", err)
 		}
 		return nil
 	})
 }
 
 // detectFileType reads the first 512 bytes and detects the MIME type
-func detectFileType(FileHeader *multipart.FileHeader) (string, *ServiceError) {
+func detectFileType(FileHeader *multipart.FileHeader) (string, *services.ServiceError) {
 	file, err := FileHeader.Open()
 
 	if err != nil {
-		return "", systemErrString("error opening file header: " + err.Error())
+		return "", services.SystemErrString("error opening file header: " + err.Error())
 	}
 	defer file.Close()
 	buf := make([]byte, 512)
 	_, err = file.Read(buf)
 	if err != nil {
-		return "", systemErrString("error reading uploaded file for detecting file type", err)
+		return "", services.SystemErrString("error reading uploaded file for detecting file type", err)
 	}
 
 	contentType := http.DetectContentType(buf)     // Detect MIME type
 	if !strings.HasPrefix(contentType, "image/") { // Allow only images
-		return "", clientErr("unsupported file type: " + contentType)
+		return "", services.ClientErr("unsupported file type: " + contentType)
 	}
 	var ext string
 	switch contentType {
@@ -97,19 +98,19 @@ func detectFileType(FileHeader *multipart.FileHeader) (string, *ServiceError) {
 	case "image/x-icon":
 		ext = "ico"
 	default:
-		return "", clientErr("unsupported file type: " + contentType)
+		return "", services.ClientErr("unsupported file type: " + contentType)
 	}
 	return ext, nil
 }
 
-// func (service *ImageUploadService) UploadMultiple(r *http.Request, formInputKey string) ([]string, *ServiceError) {
+// func (service *ImageUploadService) UploadMultiple(r *http.Request, formInputKey string) ([]string, *services.ServiceError) {
 
 // 	// Limit request size
 // 	r.ParseMultipartForm(service.maxMemoryMB << 20) // 10MB max memory
 
 // 	files := r.MultipartForm.File[formInputKey]
 // 	if len(files) == 0 {
-// 		return nil, clientErr("No files uploaded")
+// 		return nil, services.ClientErr("No files uploaded")
 // 	}
 
 // 	uris := make([]string, 0, len(files))
@@ -124,11 +125,11 @@ func detectFileType(FileHeader *multipart.FileHeader) (string, *ServiceError) {
 
 // }
 
-// func (service *ImageUploadService) uploadFileFromHeader(fileheader *multipart.FileHeader) (string, *ServiceError) {
+// func (service *ImageUploadService) uploadFileFromHeader(fileheader *multipart.FileHeader) (string, *services.ServiceError) {
 
 // 	file, err := fileheader.Open()
 // 	if err != nil {
-// 		return "", systemErrString("Failed to open uploaded file", err)
+// 		return "", services.SystemErrString("Failed to open uploaded file", err)
 // 	}
 // 	defer file.Close()
 
@@ -141,12 +142,12 @@ func detectFileType(FileHeader *multipart.FileHeader) (string, *ServiceError) {
 // 	dstPath := filepath.Join(service.dir, filename)
 // 	dst, err := os.Create(dstPath)
 // 	if err != nil {
-// 		return "", systemErrString("Failed to create file on server", err)
+// 		return "", services.SystemErrString("Failed to create file on server", err)
 // 	}
 // 	defer dst.Close()
 
 // 	if _, err := io.Copy(dst, file); err != nil {
-// 		return "", systemErrString("Failed to save uploaded file", err)
+// 		return "", services.SystemErrString("Failed to save uploaded file", err)
 // 	}
 // 	return dstPath, nil
 // }
