@@ -36,7 +36,7 @@ func CreateHandler[T any](handle CreateFunc[T]) http.HandlerFunc {
 		}
 		err = handle(w, r, CreateSession, input)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err)
 			return
 		}
 	}
@@ -63,13 +63,13 @@ func DefaultHandler(handle func(http.ResponseWriter, *http.Request, *DefaultSess
 
 		err = handle(w, r, &session)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err)
 			return
 		}
 	}
 }
 
-func DefaultListHandler[T any](listService services.Lister[T]) http.HandlerFunc {
+func DefaultListHandler[T any](listFunc func(context.Context, string) ([]T, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		_, shopId, err := myctx.GetIdsFromContext(ctx)
@@ -78,9 +78,9 @@ func DefaultListHandler[T any](listService services.Lister[T]) http.HandlerFunc 
 			return
 		}
 
-		resourceSlice, err := listService.List(shopId)
+		resourceSlice, err := listFunc(ctx, shopId)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err)
 			return
 		}
 
@@ -122,7 +122,7 @@ func DeleteHandler(handle DeleteFunc) http.HandlerFunc {
 		}
 		err = handle(w, r, DeleteSession)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err)
 			return
 		}
 	}
@@ -159,7 +159,8 @@ func DefaultGetHandler[T any](getFunc func(context.Context, int, string) (T, boo
 			return
 		}
 		if !found {
-			http.Error(w)
+			http.Error(w, "record not found", http.StatusNotFound)
+			return
 		}
 
 		finalErrHandle(w,
@@ -197,7 +198,7 @@ func InputHandler[T any](handle func(http.ResponseWriter, *http.Request, *Defaul
 		}
 		err = handle(w, r, &session, input)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err)
 			return
 		}
 	}
@@ -331,7 +332,7 @@ func UpdateHandler[T any](handle UpdateFunc[T]) http.HandlerFunc {
 		}
 		err = handle(w, r, UpdateSession, input)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err)
 			return
 		}
 	}

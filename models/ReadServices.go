@@ -89,10 +89,12 @@ type CrudServices struct {
 	CategoryService *CategoryService
 	ItemService     *ItemService
 	UnitService     *UnitService
+	UserService     *UserService
 }
 
 func NewServices(db *gorm.DB, cache services.CacheService) *CrudServices {
 	return &CrudServices{
 		CategoryService: NewCategoryService(db, cache),
+		UserService:     NewUserService(db),
 	}
 }

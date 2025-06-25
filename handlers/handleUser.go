@@ -41,29 +41,15 @@ type NewUserEdit struct {
 	PhoneNo  *optionalString `json:"phone_no" validate:"omitempty,min=5,max=20"`
 }
 
-func UpdateUserInfo(db *gorm.DB) http.HandlerFunc {
+func UpdateUserInfo(userService *models.UserService) http.HandlerFunc {
 	return InputHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession, input *NewUserEdit) error {
-		var user models.User
-		if err := db.WithContext(r.Context()).First(&user, session.UserId).Error; err != nil {
-			return err
-		}
 
-		updates := map[string]any{
-			"Username": input.Username,
-			"Email":    input.Email,
-		}
-		if input.PhoneNo.IsPresent() {
-			updates["PhoneNo"] = input.PhoneNo.String()
-		}
-		shopFilter := NewShopFilter(session.ShopId)
-		if errs := Validate(db,
-			NewUniqueRule("users", "username", input.Username, session.UserId, "duplicate username", shopFilter),
-			NewUniqueRule("users", "email", input.Email, session.UserId, "duplicate email", shopFilter),
-			NewUniqueRule("users", "phone_no", input.PhoneNo, session.UserId, "duplicate phone number", shopFilter).When(input.PhoneNo.IsPresent()),
-		); errs != nil {
-			return errs.Respond(w)
-		}
-		if err := db.Model(&user).Updates(updates).Error; err != nil {
+		_, err := userService.UpdateInfo(r.Context(), session.ShopId, session.UserId, &models.User{
+			Username: input.Username.String(),
+			Email:    input.Email.String(),
+			PhoneNo:  input.PhoneNo.String(),
+		})
+		if err != nil {
 			return err
 		}
 

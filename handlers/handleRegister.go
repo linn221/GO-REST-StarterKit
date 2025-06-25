@@ -7,6 +7,7 @@ import (
 	"linn221/shop/utils"
 	"math/rand"
 	"net/http"
+	"sync"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -20,7 +21,10 @@ type NewShop struct {
 }
 
 func Register(db *gorm.DB) http.HandlerFunc {
+	var mu sync.Mutex
 	return func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
 		// var input NewShop
 		// defer r.Body.Close()
 		// err := json.NewDecoder(r.Body).Decode(&input)

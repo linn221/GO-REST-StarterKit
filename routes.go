@@ -3,7 +3,6 @@ package main
 import (
 	"linn221/shop/handlers"
 	"linn221/shop/middlewares"
-	"linn221/shop/models"
 	"log"
 	"net/http"
 	"time"
@@ -16,7 +15,7 @@ func (app *App) Serve() {
 	authMux.Handle("GET /me", handlers.Me(app.DB))
 	authMux.HandleFunc("POST /change-password", handlers.ChangePassword(app.DB))
 	authMux.HandleFunc("POST /logout", handlers.Logout(app.DB, app.Cache))
-	authMux.HandleFunc("POST /update-profile", handlers.UpdateUserInfo(app.DB))
+	authMux.HandleFunc("POST /update-profile", handlers.UpdateUserInfo(app.Services.UserService))
 
 	//categories
 	authMux.HandleFunc("POST /categories", handlers.HandleCategoryCreate(app.Services.CategoryService))
@@ -27,10 +26,10 @@ func (app *App) Serve() {
 	// 		app.Readers.AfterCategoryUpdate,
 	// 	))
 	authMux.HandleFunc("GET /categories/{id}", handlers.DefaultGetHandler(app.Services.CategoryService.Get))
-	authMux.HandleFunc("GET /categories", handlers.DefaultListHandler(app.Readers.CategoryListService))
-	authMux.HandleFunc("GET /categories/inactive",
-		handlers.ListInactiveHandler[models.Category, models.CategoryResource](app.DB),
-	)
+	authMux.HandleFunc("GET /categories", handlers.DefaultListHandler(app.Services.CategoryService.List))
+	// authMux.HandleFunc("GET /categories/inactive",
+	// 	handlers.ListInactiveHandler[models.Category, models.CategoryResource](app.DB),
+	// )
 
 	// //units
 	// authMux.HandleFunc("POST /units", handlers.HandleUnitCreate(app.DB,
