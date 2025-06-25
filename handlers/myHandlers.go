@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"linn221/shop/myctx"
 	"linn221/shop/services"
 	"net/http"
@@ -135,7 +136,7 @@ type GetSession struct {
 
 type GetFunc func(w http.ResponseWriter, r *http.Request, session *GetSession) error
 
-func DefaultGetHandler[T any](getService services.Getter[T]) http.HandlerFunc {
+func DefaultGetHandler[T any](getFunc func(context.Context, int, string) (T, bool, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := r.Context()
@@ -152,16 +153,13 @@ func DefaultGetHandler[T any](getService services.Getter[T]) http.HandlerFunc {
 			return
 		}
 
-		resource, found, err := getService.Get(shopId, resId)
+		resource, found, err := getFunc(ctx, resId, shopId)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			respondError(w, err)
 			return
 		}
 		if !found {
-			finalErrHandle(w,
-				respondNotFound(w, "record not found"),
-			)
-			return
+			http.Error(w)
 		}
 
 		finalErrHandle(w,

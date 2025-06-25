@@ -3,8 +3,6 @@ package handlers
 import (
 	"linn221/shop/models"
 	"net/http"
-
-	"gorm.io/gorm"
 )
 
 type NewCategory struct {
@@ -32,70 +30,26 @@ func HandleCategoryCreate(categoryService *models.CategoryService) http.HandlerF
 	})
 }
 
-func HandleCategoryUpdate(db *gorm.DB,
-	cleanCache func(db *gorm.DB, shopId string, id int) error,
-) http.HandlerFunc {
+func HandleCategoryUpdate(categoryService *models.CategoryService) http.HandlerFunc {
 	return UpdateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewCategory) error {
 		ctx := r.Context()
-		if errs := input.validate(db.WithContext(ctx), session.ShopId, session.ResId); errs != nil {
-			return errs.Respond(w)
-		}
-		var category models.Category
-		if err := db.WithContext(ctx).Where("shop_id = ?", session.ShopId).First(&category, session.ResId).Error; err != nil {
-			return err
-		}
-		updates := map[string]any{
-			"Name": input.Name.String(),
-		}
-		if input.Description.IsPresent() {
-			updates["Description"] = input.Description
-		}
 
-		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			if err := tx.Model(&category).Updates(updates).Error; err != nil {
-				return err
-			}
-			if err := cleanCache(db.WithContext(ctx), session.ShopId, session.ResId); err != nil {
-				return err
-			}
-			return nil
-		})
+		_, err := categoryService.Update(ctx, &models.Category{
+			Name:        input.Name.String(),
+			Description: input.Description.StringPtr(),
+		}, session.ResId, session.ShopId)
 		if err != nil {
 			return err
 		}
-
 		respondNoContent(w)
 		return nil
 	})
 }
 
-func HandleCategoryDelete(db *gorm.DB,
-	cleanCache func(*gorm.DB, string, int) error,
-) http.HandlerFunc {
+func HandleCategoryDelete(categoryService *models.CategoryService) http.HandlerFunc {
 	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session Session) error {
 		ctx := r.Context()
-		var category models.Category
-		if err := db.WithContext(ctx).Where("shop_id = ?", session.ShopId).First(&category, session.ResId).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return respondNotFound(w, "category not found")
-			}
-			return err
-		}
-
-		if errs := Validate(db.WithContext(ctx),
-			NewNoResultRule("items", "category has been used in items", NewFilter("category_id = ?", session.ResId)),
-		); errs != nil {
-			return errs.Respond(w)
-		}
-		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			if err := tx.Delete(&category).Error; err != nil {
-				return err
-			}
-			if err := cleanCache(db.WithContext(ctx), session.ShopId, session.ResId); err != nil {
-				return err
-			}
-			return nil
-		})
+		_, err := categoryService.Delete(ctx, session.ResId, session.ShopId)
 		if err != nil {
 			return err
 		}

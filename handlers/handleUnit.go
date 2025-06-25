@@ -14,7 +14,7 @@ type NewUnit struct {
 	Description *optionalString `json:"description" validate:"omitempty,max=500"`
 }
 
-func (input *NewUnit) validate(db *gorm.DB, shopId string, id int) *services.ServiceError {
+func (input *NewUnit) validate(db *gorm.DB, shopId string, id int) error {
 
 	shopFilter := NewShopFilter(shopId)
 	if err := Validate(db,

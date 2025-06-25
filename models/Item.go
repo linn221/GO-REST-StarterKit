@@ -1,6 +1,10 @@
 package models
 
 import (
+	"context"
+	"linn221/shop/services"
+	"time"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -90,15 +94,15 @@ func FetchInactiveItemResources(db *gorm.DB, shopId string) ([]ItemResource, err
 	return results, nil
 }
 
-func (readers *ReadServices) AfterUpdateItem(db *gorm.DB, shopId string, id int) error {
-	if err := readers.ItemGetService.CleanCache(id); err != nil {
-		return err
-	}
-	if err := readers.ItemListService.CleanCache(shopId); err != nil {
-		return err
-	}
-	return nil
-}
+// func (readers *ReadServices) AfterUpdateItem(db *gorm.DB, shopId string, id int) error {
+// 	if err := readers.ItemGetService.CleanCache(id); err != nil {
+// 		return err
+// 	}
+// 	if err := readers.ItemListService.CleanCache(shopId); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 type ItemSearch struct {
 	Search           string
@@ -157,4 +161,76 @@ func SearchItems(db *gorm.DB, shopId string, search *ItemSearch) ([]ItemResource
 		})
 	}
 	return results, nil
+}
+
+type ItemService struct {
+	db     *gorm.DB
+	getter services.Getter[ItemDetailResource]
+	lister services.Lister[ItemResource]
+}
+
+func NewItemService(db *gorm.DB, cache services.CacheService) *ItemService {
+	return &ItemService{
+		db: db,
+		getter: &customGetService[ItemDetailResource]{
+			db:          db,
+			cache:       cache,
+			cachePrefix: "items",
+			cacheLength: time.Hour * 127,
+			fetch: func(db *gorm.DB, id int) (ItemDetailResource, error) {
+				var item Item
+				if err := db.Preload("Category").Preload("Unit").First(&item, id).Error; err != nil {
+					return ItemDetailResource{}, err
+				}
+				result := ItemDetailResource{
+					Id:            item.Id,
+					Name:          item.Name,
+					SalesPrice:    item.SalesPrice,
+					PurchasePrice: item.PurchasePrice,
+					Description:   item.Description,
+				}
+				result.ShopId = item.ShopId
+				result.IsActive = item.IsActive
+				result.Category.Id = item.Category.Id
+				result.Category.Name = item.Category.Name
+				result.Category.IsActive = item.Category.IsActive
+
+				result.Unit.Id = item.Unit.Id
+				result.Unit.Name = item.Unit.Name
+				result.Unit.Symbol = item.Unit.Symbol
+				result.Unit.IsActive = item.Unit.IsActive
+				return result, nil
+			},
+		},
+		lister: &customListService[ItemResource]{
+			db:          db,
+			cache:       cache,
+			cachePrefix: "ItemList",
+			cacheLength: forever,
+			fetch:       FetchItemResources,
+		},
+	}
+}
+
+func (s *ItemService) Store(ctx context.Context, input *Item, shopId string) (*ItemResource, error) {
+	panic("not implemented")
+
+}
+
+func (s *ItemService) Update(ctx context.Context, input *Item, id int, shopId string) (*ItemResource, error) {
+	panic("not implemented")
+
+}
+func (s *ItemService) Delete(ctx context.Context, id int, shopId string) (*ItemResource, error) {
+	panic("not implemented")
+
+}
+
+func (s *ItemService) Get(ctx context.Context, id int, shopId string) (*ItemDetailResource, error) {
+
+	panic("not implemented")
+}
+func (s *ItemService) List(ctx context.Context, shopId string) ([]*ItemResource, error) {
+
+	panic("not implemented")
 }

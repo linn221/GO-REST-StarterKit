@@ -3,7 +3,6 @@ package handlers
 import (
 	"linn221/shop/models"
 	"linn221/shop/services"
-	"linn221/shop/validate"
 	"net/http"
 	"strconv"
 
@@ -20,8 +19,8 @@ type NewItem struct {
 	PurchasePrice *decimal.Decimal `json:"purchase_price" validate:"required,number,gte=1"`
 }
 
-func (input *NewItem) validate(db *gorm.DB, shopId string, id int) *services.ServiceError {
-	shopFilter := validate.NewShopFilter(shopId)
+func (input *NewItem) validate(db *gorm.DB, shopId string, id int) error {
+	shopFilter := NewShopFilter(shopId)
 	if err := Validate(db,
 		NewExistsRule("items", id, "item not found", shopFilter).When(id > 0),
 		NewUniqueRule("items", "name", input.Name, id, "duplicate item name", shopFilter),

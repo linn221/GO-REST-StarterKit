@@ -19,7 +19,7 @@ func main() {
 	redisCache := config.ConnectRedis(ctx)
 	dir := config.GetImageDirectory()
 	port := config.GetPortNo()
-	readServices := models.NewReaders(db, redisCache)
+	// readServices := models.NewReaders(db, redisCache)
 	crudServices := models.NewServices(db, redisCache)
 
 	// rate limiting crud endpoints by userId
@@ -38,11 +38,11 @@ func main() {
 	})
 	// serves http server
 	app := &App{
-		DB:                db,
-		Cache:             redisCache,
-		Services:          crudServices,
-		ImageDirectory:    dir,
-		Readers:           readServices,
+		DB:             db,
+		Cache:          redisCache,
+		Services:       crudServices,
+		ImageDirectory: dir,
+		// Readers:           readServices,
 		Port:              port,
 		ResourceRateLimit: resourceRateLimit,
 		GeneralRateLimit:  generalRateLimit,

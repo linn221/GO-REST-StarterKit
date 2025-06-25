@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"linn221/shop/services"
 	"net/http"
 
 	"github.com/go-playground/validator"
-	"gorm.io/gorm"
 )
 
 type ValidationError struct {
@@ -16,9 +14,10 @@ type ValidationError struct {
 	Message string `json:"message"`
 }
 
-type MyError struct {
-	Error  error
-	Status int
+var ErrBadRequest = errors.New("Bad Request")
+
+func badRequest(s string) error {
+	return fmt.Errorf("%w: %s", ErrBadRequest, s)
 }
 
 // will parse the request, if found errors, will write to the response
