@@ -2,8 +2,12 @@ package models
 
 import (
 	"context"
+	"fmt"
+	"linn221/shop/utils"
+	"math/rand"
 	"sync"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -26,6 +30,66 @@ func NewUserService(db *gorm.DB) *UserService {
 	return &UserService{
 		db: db,
 	}
+}
+
+func (u *UserService) Login(ctx context.Context, username string, password string) (*User, error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	var user User
+	if err := u.db.WithContext(ctx).Where("username = ?", username).First(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if err := utils.ComparePassword(user.Password, password); err != nil {
+		return nil, ErrNotFound
+	}
+	return &user, nil
+}
+
+func (u *UserService) Register(ctx context.Context, name, email, password, phoneNo string) (*User, error) {
+
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	shopId := uuid.NewString()
+	shop := Shop{
+		Id:      shopId,
+		Name:    name,
+		LogoUrl: "",
+		Email:   email,
+		PhoneNo: phoneNo,
+	}
+	tx := u.db.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := tx.Create(&shop).Error; err != nil {
+		return nil, err
+	}
+
+	i := rand.Intn(100000)
+	username := fmt.Sprintf("owner%d", i)
+	password2, err := utils.HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
+	user := User{
+		Username: username,
+		Email:    email,
+		PhoneNo:  phoneNo,
+		Password: string(password2),
+	}
+	user.ShopId = shopId
+	if err := tx.Create(&user).Error; err != nil {
+		return nil, err
+	}
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 func (u *UserService) UpdateInfo(ctx context.Context, shopId string, userId int, input *User) (*User, error) {

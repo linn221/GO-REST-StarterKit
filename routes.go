@@ -73,8 +73,8 @@ func (app *App) Serve() {
 	mainMux := http.NewServeMux()
 	// public routes
 	mainMux.HandleFunc("POST /upload-single", handlers.HandleImageUploadSingle(app.DB, app.ImageDirectory))
-	mainMux.HandleFunc("POST /register", handlers.Register(app.DB))
-	mainMux.HandleFunc("POST /login", handlers.Login(app.DB, app.Cache))
+	mainMux.HandleFunc("POST /register", handlers.Register(app.Services.UserService))
+	mainMux.HandleFunc("POST /login", handlers.Login(app.Services.UserService, app.Cache))
 
 	mainMux.Handle("/api/", http.StripPrefix("/api", middlewares.Auth(app.ResourceRateLimit(authMux))))
 
