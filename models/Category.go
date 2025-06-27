@@ -31,9 +31,10 @@ type CategoryDetailResource struct {
 }
 
 type CategoryService struct {
-	db     *gorm.DB
-	getter services.Getter[CategoryDetailResource]
-	lister services.Lister[CategoryResource]
+	db                *gorm.DB
+	getter            services.Getter[CategoryDetailResource]
+	lister            services.Lister[CategoryResource]
+	cleanRelatedCache func(context.Context, int, string) error
 }
 
 func (input *Category) validate(db *gorm.DB, shopId string, id int) error {
@@ -44,7 +45,23 @@ func (input *Category) validate(db *gorm.DB, shopId string, id int) error {
 	)
 }
 
-func NewCategoryService(db *gorm.DB, cache services.CacheService) *CategoryService {
+func NewCategoryService(db *gorm.DB, cache services.CacheService, itemService *ItemService) *CategoryService {
+
+	cleanRelatedCache := func(ctx context.Context, id int, shopId string) error {
+		var relatedItemIds []int
+		if err := db.WithContext(ctx).Model(&Item{}).Where("unit_id = ?", id).Pluck("id", &relatedItemIds).Error; err != nil {
+			return err
+		}
+		for _, itemId := range relatedItemIds {
+			if err := itemService.getter.CleanCache(itemId); err != nil {
+				return err
+			}
+		}
+		if err := itemService.lister.CleanCache(shopId); err != nil {
+			return err
+		}
+		return nil
+	}
 	return &CategoryService{
 		db: db,
 		getter: &defaultGetService[CategoryDetailResource]{
@@ -61,7 +78,21 @@ func NewCategoryService(db *gorm.DB, cache services.CacheService) *CategoryServi
 			cachePrefix: "CategoryList",
 			cacheLength: forever,
 		},
+		cleanRelatedCache: cleanRelatedCache,
 	}
+}
+
+func (s *CategoryService) cleanCacheAfterInstanceUpdate(ctx context.Context, id int, shopId string) error {
+	if err := s.getter.CleanCache(id); err != nil {
+		return err
+	}
+	if err := s.lister.CleanCache(shopId); err != nil {
+		return err
+	}
+	if err := s.cleanRelatedCache(ctx, id, shopId); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *CategoryService) Store(ctx context.Context, input *Category, shopId string) (*Category, error) {
@@ -89,7 +120,7 @@ func (s *CategoryService) Store(ctx context.Context, input *Category, shopId str
 
 func (s *CategoryService) Update(ctx context.Context, input *Category, id int, shopId string) (*Category, error) {
 
-	err := input.validate(s.db.WithContext(ctx), shopId, 0)
+	err := input.validate(s.db.WithContext(ctx), shopId, id)
 	if err != nil {
 		return nil, err
 	}
@@ -107,10 +138,8 @@ func (s *CategoryService) Update(ctx context.Context, input *Category, id int, s
 		if err := tx.Model(&category).Updates(updates).Error; err != nil {
 			return err
 		}
-		if err := s.getter.CleanCache(id); err != nil {
-			return err
-		}
-		if err := s.lister.CleanCache(shopId); err != nil {
+
+		if err := s.cleanCacheAfterInstanceUpdate(ctx, id, shopId); err != nil {
 			return err
 		}
 
@@ -139,10 +168,8 @@ func (s *CategoryService) Delete(ctx context.Context, id int, shopId string) (*C
 		if err := tx.Delete(&category).Error; err != nil {
 			return err
 		}
-		if err := s.getter.CleanCache(id); err != nil {
-			return err
-		}
-		if err := s.lister.CleanCache(shopId); err != nil {
+
+		if err := s.cleanCacheAfterInstanceUpdate(ctx, id, shopId); err != nil {
 			return err
 		}
 

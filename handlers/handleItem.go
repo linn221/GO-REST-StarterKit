@@ -2,12 +2,10 @@ package handlers
 
 import (
 	"linn221/shop/models"
-	"linn221/shop/services"
 	"net/http"
 	"strconv"
 
 	"github.com/shopspring/decimal"
-	"gorm.io/gorm"
 )
 
 type NewItem struct {
@@ -19,28 +17,10 @@ type NewItem struct {
 	PurchasePrice *decimal.Decimal `json:"purchase_price" validate:"required,number,gte=1"`
 }
 
-func (input *NewItem) validate(db *gorm.DB, shopId string, id int) error {
-	shopFilter := NewShopFilter(shopId)
-	if err := Validate(db,
-		NewExistsRule("items", id, "item not found", shopFilter).When(id > 0),
-		NewUniqueRule("items", "name", input.Name, id, "duplicate item name", shopFilter),
-		NewExistsRule("units", input.UnitId, "unit not found", shopFilter),
-		NewExistsRule("categories", input.CategoryId, "category not found", shopFilter),
-	); err != nil {
-		return err
-	}
-	return nil
-}
-
-func HandleItemCreate(db *gorm.DB,
-	cleanListingCache services.CleanListingCache,
-) http.HandlerFunc {
+func HandleItemCreate(itemService *models.ItemService) http.HandlerFunc {
 	return CreateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewItem) error {
 
 		ctx := r.Context()
-		if errs := input.validate(db.WithContext(ctx), session.ShopId, 0); errs != nil {
-			return errs.Respond(w)
-		}
 		item := models.Item{
 			Name:          input.Name.String(),
 			Description:   input.Description.StringPtr(),
@@ -51,16 +31,7 @@ func HandleItemCreate(db *gorm.DB,
 		}
 		item.ShopId = session.ShopId
 
-		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			if err := tx.Create(&item).Error; err != nil {
-				return err
-			}
-
-			if err := cleanListingCache(session.ShopId); err != nil {
-				return err
-			}
-			return nil
-		})
+		_, err := itemService.Store(ctx, &item, session.ShopId)
 		if err != nil {
 			return err
 		}
@@ -70,44 +41,21 @@ func HandleItemCreate(db *gorm.DB,
 	})
 }
 
-func HandleItemUpdate(db *gorm.DB,
-	cleanInstanceCache services.CleanInstanceCache,
-	cleanListingCache services.CleanListingCache,
-) http.HandlerFunc {
+func HandleItemUpdate(itemService *models.ItemService) http.HandlerFunc {
 	return UpdateHandler(func(w http.ResponseWriter, r *http.Request, session Session, input *NewItem) error {
 
 		ctx := r.Context()
-		if errs := input.validate(db.WithContext(ctx), session.ShopId, session.ResId); errs != nil {
-			return errs.Respond(w)
-		}
-		item, errs := first[models.Item](db.WithContext(ctx), session.ShopId, session.ResId)
-		if errs != nil {
-			return errs.Respond(w)
+
+		updates := models.Item{
+			Name:          input.Name.String(),
+			CategoryId:    input.CategoryId,
+			UnitId:        input.UnitId,
+			PurchasePrice: *input.PurchasePrice,
+			SalesPrice:    *input.SalesPrice,
+			Description:   input.Description.StringPtr(),
 		}
 
-		updates := map[string]any{
-			"Name":          input.Name,
-			"CategoryId":    input.CategoryId,
-			"UnitId":        input.UnitId,
-			"PurchasePrice": input.PurchasePrice,
-			"SalesPrice":    input.SalesPrice,
-		}
-		if input.Description.IsPresent() {
-			updates["Description"] = input.Description.String()
-		}
-
-		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			if err := tx.Model(&item).Updates(updates).Error; err != nil {
-				return err
-			}
-			if err := cleanInstanceCache(session.ResId); err != nil {
-				return err
-			}
-			if err := cleanListingCache(session.ShopId); err != nil {
-				return err
-			}
-			return nil
-		})
+		_, err := itemService.Update(ctx, &updates, session.ResId, session.ShopId)
 		if err != nil {
 			return err
 		}
@@ -117,31 +65,11 @@ func HandleItemUpdate(db *gorm.DB,
 	})
 }
 
-func HandleItemDelete(db *gorm.DB,
-	cleanInstanceCache services.CleanInstanceCache,
-	cleanListingCache services.CleanListingCache,
-) http.HandlerFunc {
+func HandleItemDelete(itemService *models.ItemService) http.HandlerFunc {
 	return DeleteHandler(func(w http.ResponseWriter, r *http.Request, session Session) error {
 
 		ctx := r.Context()
-		item, errs := first[models.Item](db.WithContext(ctx), session.ShopId, session.ResId)
-		if errs != nil {
-			return errs.Respond(w)
-		}
-
-		// valiate
-		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			if err := tx.Delete(&item).Error; err != nil {
-				return err
-			}
-			if err := cleanInstanceCache(session.ResId); err != nil {
-				return err
-			}
-			if err := cleanListingCache(session.ShopId); err != nil {
-				return err
-			}
-			return nil
-		})
+		_, err := itemService.Delete(ctx, session.ResId, session.ShopId)
 		if err != nil {
 			return err
 		}
@@ -204,7 +132,7 @@ func parseItemSearch(r *http.Request) (*models.ItemSearch, error) {
 	return &search, nil
 }
 
-func HandleItemIndex(db *gorm.DB) http.HandlerFunc {
+func HandleItemSearch(itemService *models.ItemService) http.HandlerFunc {
 	return DefaultHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession) error {
 		search, err := parseItemSearch(r)
 		if err != nil {
@@ -212,7 +140,7 @@ func HandleItemIndex(db *gorm.DB) http.HandlerFunc {
 		}
 
 		//2d cache results
-		results, err := models.SearchItems(db.WithContext(r.Context()), session.ShopId, search)
+		results, err := itemService.SearchItems(r.Context(), session.ShopId, search)
 		if err != nil {
 			return err
 		}
