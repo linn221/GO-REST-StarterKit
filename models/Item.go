@@ -114,9 +114,9 @@ type ItemSearch struct {
 	PurchasePriceMax *decimal.Decimal
 }
 
-func SearchItems(db *gorm.DB, shopId string, search *ItemSearch) ([]ItemResource, error) {
+func (s *ItemService) SearchItems(ctx context.Context, shopId string, search *ItemSearch) ([]ItemResource, error) {
 	var items []Item
-	dbCtx := db.Where("shop_id = ?", shopId)
+	dbCtx := s.db.WithContext(ctx).Where("shop_id = ?", shopId)
 	if search.Search != "" {
 		dbCtx.Where("name LIKE ? OR description LIKE ?",
 			"%"+search.Search+"%",
@@ -212,25 +212,120 @@ func NewItemService(db *gorm.DB, cache services.CacheService) *ItemService {
 	}
 }
 
-func (s *ItemService) Store(ctx context.Context, input *Item, shopId string) (*ItemResource, error) {
-	panic("not implemented")
+func (input *Item) validate(db *gorm.DB, shopId string, id int) error {
+	shopFilter := NewShopFilter(shopId)
+	if err := Validate(db,
+		NewExistsRule("items", id, badRequest("item not found"), shopFilter).When(id > 0),
+		NewUniqueRule("items", "name", input.Name, id, badRequest("duplicate item name"), shopFilter),
+		NewExistsRule("units", input.UnitId, badRequest("unit not found"), shopFilter),
+		NewExistsRule("categories", input.CategoryId, badRequest("category not found"), shopFilter),
+	); err != nil {
+		return err
+	}
+	return nil
+}
+func (s *ItemService) Store(ctx context.Context, input *Item, shopId string) (*Item, error) {
+	if err := input.validate(s.db.WithContext(ctx), shopId, 0); err != nil {
+		return nil, err
+	}
 
+	tx := s.db.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	if err := tx.Create(&input).Error; err != nil {
+		return nil, err
+	}
+
+	if err := s.lister.CleanCache(shopId); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+	return input, nil
 }
 
-func (s *ItemService) Update(ctx context.Context, input *Item, id int, shopId string) (*ItemResource, error) {
-	panic("not implemented")
-
+func (s *ItemService) cleanCacheAfterInsanceUpdate(ctx context.Context, id int, shopId string) error {
+	if err := s.getter.CleanCache(id); err != nil {
+		return err
+	}
+	if err := s.lister.CleanCache(shopId); err != nil {
+		return err
+	}
+	return nil
 }
-func (s *ItemService) Delete(ctx context.Context, id int, shopId string) (*ItemResource, error) {
-	panic("not implemented")
 
+func (s *ItemService) Update(ctx context.Context, input *Item, id int, shopId string) (*Item, error) {
+
+	if err := input.validate(s.db.WithContext(ctx), shopId, id); err != nil {
+		return nil, err
+	}
+
+	item, err := first[Item](s.db.WithContext(ctx), shopId, id)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := s.db.WithContext(ctx).Begin()
+	defer tx.Rollback()
+
+	updates := map[string]any{
+		"Name":          input.Name,
+		"CategoryId":    input.CategoryId,
+		"UnitId":        input.UnitId,
+		"PurchasePrice": input.PurchasePrice,
+		"SalesPrice":    input.SalesPrice,
+	}
+	if input.Description != nil {
+		updates["Description"] = input.Description
+	}
+	if err := tx.Model(&item).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+	if err := s.cleanCacheAfterInsanceUpdate(ctx, id, shopId); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+func (s *ItemService) Delete(ctx context.Context, id int, shopId string) (*Item, error) {
+
+	if err := Validate(s.db.WithContext(ctx),
+		NewExistsRule("items", id, notFound("item not found"), NewShopFilter(shopId))); err != nil {
+		return nil, err
+	}
+
+	item, err := first[Item](s.db.WithContext(ctx), shopId, id)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := s.db.WithContext(ctx)
+	defer tx.Rollback()
+
+	if err := tx.Delete(&item).Error; err != nil {
+		return nil, err
+	}
+
+	if err := s.cleanCacheAfterInsanceUpdate(ctx, id, shopId); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+
+	return item, nil
 }
 
-func (s *ItemService) Get(ctx context.Context, id int, shopId string) (*ItemDetailResource, error) {
+func (s *ItemService) Get(ctx context.Context, id int, shopId string) (*ItemDetailResource, bool, error) {
 
-	panic("not implemented")
+	return s.getter.Get(shopId, id)
 }
-func (s *ItemService) List(ctx context.Context, shopId string) ([]*ItemResource, error) {
-
-	panic("not implemented")
+func (s *ItemService) List(ctx context.Context, shopId string) ([]ItemResource, error) {
+	return s.lister.List(shopId)
 }

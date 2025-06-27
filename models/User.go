@@ -16,7 +16,7 @@ type User struct {
 	Username string `gorm:"unique;not null"`
 	Email    string `gorm:"unique"`
 	PhoneNo  string `gorm:"unique"`
-	Password string `gorm:"index;not null"`
+	Password string `gorm:"index;not null" json:"-"`
 	HasIsActive
 	HasShopId
 }
@@ -39,12 +39,13 @@ func (u *UserService) Login(ctx context.Context, username string, password strin
 	var user User
 	if err := u.db.WithContext(ctx).Where("username = ?", username).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, ErrNotFound
+			return nil, badRequest("invalid username or password")
 		}
 		return nil, err
 	}
+
 	if err := utils.ComparePassword(user.Password, password); err != nil {
-		return nil, ErrNotFound
+		return nil, badRequest("invalid username or password")
 	}
 	return &user, nil
 }
@@ -85,6 +86,14 @@ func (u *UserService) Register(ctx context.Context, name, email, password, phone
 		Email:   email,
 		PhoneNo: phoneNo,
 	}
+
+	if err := Validate(u.db.WithContext(ctx),
+		NewUniqueRule("users", "email", email, 0, badRequest("duplicate email"), nil),
+		NewUniqueRule("users", "phone_no", phoneNo, 0, badRequest("duplicate phone number"), nil),
+	); err != nil {
+		return nil, err
+	}
+
 	tx := u.db.WithContext(ctx).Begin()
 	defer tx.Rollback()
 
@@ -133,11 +142,10 @@ func (u *UserService) UpdateInfo(ctx context.Context, shopId string, userId int,
 		updates["PhoneNo"] = input.PhoneNo
 	}
 
-	shopFilter := NewShopFilter(shopId)
 	if err := Validate(u.db.WithContext(ctx),
-		NewUniqueRule("users", "username", input.Username, userId, badRequest("duplicate username"), shopFilter),
-		NewUniqueRule("users", "email", input.Email, userId, badRequest("duplicate email"), shopFilter),
-		NewUniqueRule("users", "phone_no", input.PhoneNo, userId, badRequest("duplicate phone number"), shopFilter).When(input.PhoneNo != ""),
+		NewUniqueRule("users", "username", input.Username, userId, badRequest("duplicate username"), nil),
+		NewUniqueRule("users", "email", input.Email, userId, badRequest("duplicate email"), nil),
+		NewUniqueRule("users", "phone_no", input.PhoneNo, userId, badRequest("duplicate phone number"), nil).When(input.PhoneNo != ""),
 	); err != nil {
 		return nil, err
 	}

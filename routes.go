@@ -31,41 +31,27 @@ func (app *App) Serve() {
 	// 	handlers.ListInactiveHandler[models.Category, models.CategoryResource](app.DB),
 	// )
 
-	// //units
-	// authMux.HandleFunc("POST /units", handlers.HandleUnitCreate(app.DB,
-	// 	app.Readers.UnitListService.CleanCache,
-	// ))
-	// authMux.HandleFunc("PUT /units/{id}", handlers.HandleUnitUpdate(app.DB,
-	// 	app.Readers.AfterUnitUpdate,
-	// ))
-	// authMux.HandleFunc("DELETE /units/{id}", handlers.HandleUnitDelete(app.DB,
-	// 	app.Readers.AfterUnitUpdate,
-	// ))
+	//units
+	authMux.HandleFunc("POST /units", handlers.HandleUnitCreate(app.Services.UnitService))
+	authMux.HandleFunc("PUT /units/{id}", handlers.HandleUnitUpdate(app.Services.UnitService))
+	authMux.HandleFunc("DELETE /units/{id}", handlers.HandleUnitDelete(app.Services.UnitService))
 	// authMux.HandleFunc("PATCH /units/{id}/toggle", handlers.HandleToggleActive[models.Unit](app.DB,
 	// 	app.Readers.AfterUnitUpdate,
 	// ))
-	// authMux.HandleFunc("GET /units/{id}", handlers.DefaultGetHandler(app.Readers.UnitGetService))
-	// authMux.HandleFunc("GET /units", handlers.DefaultListHandler(app.Readers.UnitListService))
+	authMux.HandleFunc("GET /units/{id}", handlers.DefaultGetHandler(app.Services.UnitService.Get))
+	authMux.HandleFunc("GET /units", handlers.DefaultListHandler(app.Services.UnitService.List))
 	// authMux.HandleFunc("GET /units/inactive", handlers.ListInactiveHandler[models.Unit, models.UnitResource](app.DB))
 
-	// // items
-	// authMux.HandleFunc("POST /items", handlers.HandleItemCreate(app.DB,
-	// 	app.Readers.ItemListService.CleanCache,
-	// ))
-	// authMux.HandleFunc("PUT /items/{id}", handlers.HandleItemUpdate(app.DB,
-	// 	app.Readers.ItemGetService.CleanCache,
-	// 	app.Readers.ItemListService.CleanCache,
-	// ))
-	// authMux.HandleFunc("DELETE /items/{id}", handlers.HandleItemDelete(app.DB,
-	// 	app.Readers.ItemGetService.CleanCache,
-	// 	app.Readers.ItemListService.CleanCache,
-	// ))
+	// items
+	authMux.HandleFunc("POST /items", handlers.HandleItemCreate(app.Services.ItemService))
+	authMux.HandleFunc("PUT /items/{id}", handlers.HandleItemUpdate(app.Services.ItemService))
+	authMux.HandleFunc("DELETE /items/{id}", handlers.HandleItemDelete(app.Services.ItemService))
 	// authMux.HandleFunc("PATCH /items/{id}/toggle",
 	// 	handlers.HandleToggleActive[models.Item](app.DB, app.Readers.AfterUpdateItem),
 	// )
-	// authMux.HandleFunc("GET /items/{id}", handlers.DefaultGetHandler(app.Readers.ItemGetService))
-	// authMux.HandleFunc("GET /items", handlers.HandleItemIndex(app.DB))
-	// authMux.HandleFunc("GET /items/all", handlers.DefaultListHandler(app.Readers.ItemListService))
+	authMux.HandleFunc("GET /items/{id}", handlers.DefaultGetHandler(app.Services.ItemService.Get))
+	authMux.HandleFunc("GET /items", handlers.DefaultListHandler(app.Services.ItemService.List))
+	authMux.HandleFunc("GET /items/search", handlers.HandleItemSearch(app.Services.ItemService))
 	// authMux.HandleFunc("GET /items/inactive",
 	// 	handlers.ListCustomInactiveHandler(app.DB, models.FetchInactiveItemResources),
 	// )
