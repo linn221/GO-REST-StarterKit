@@ -13,8 +13,8 @@ func (app *App) Serve() {
 	authMux := http.NewServeMux()
 
 	authMux.Handle("GET /me", handlers.Me(app.DB))
-	authMux.HandleFunc("POST /change-password", handlers.ChangePassword(app.DB))
-	authMux.HandleFunc("POST /logout", handlers.Logout(app.DB, app.Cache))
+	authMux.HandleFunc("POST /change-password", handlers.ChangePassword(app.Services.UserService))
+	authMux.HandleFunc("POST /logout", handlers.Logout(app.Cache))
 	authMux.HandleFunc("POST /update-profile", handlers.UpdateUserInfo(app.Services.UserService))
 
 	//categories

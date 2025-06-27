@@ -49,6 +49,29 @@ func (u *UserService) Login(ctx context.Context, username string, password strin
 	return &user, nil
 }
 
+func (s *UserService) ChangePassword(ctx context.Context, userId int, oldPassword string, newPassword string) (*User, error) {
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var user User
+	if err := s.db.WithContext(ctx).First(&user, userId).Error; err != nil {
+		return nil, err
+	}
+
+	if err := utils.ComparePassword(user.Password, oldPassword); err != nil {
+		return nil, badRequest("password do not match")
+	}
+	hashed, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.db.Model(&user).UpdateColumn("password", hashed).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (u *UserService) Register(ctx context.Context, name, email, password, phoneNo string) (*User, error) {
 
 	u.mu.Lock()

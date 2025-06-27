@@ -21,6 +21,8 @@ func respondError(w http.ResponseWriter, err error) {
 		status = http.StatusNotFound
 	} else if errors.Is(err, models.ErrBadRequest) {
 		status = http.StatusBadRequest
+	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+		status = http.StatusNotFound
 	}
 	http.Error(w, err.Error(), status)
 }

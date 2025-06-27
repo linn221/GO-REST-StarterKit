@@ -89,7 +89,7 @@ func (s *CategoryService) Store(ctx context.Context, input *Category, shopId str
 
 func (s *CategoryService) Update(ctx context.Context, input *Category, id int, shopId string) (*Category, error) {
 
-	err := input.validate(s.db.WithContext(ctx), shopId, 0)
+	err := input.validate(s.db.WithContext(ctx), shopId, id)
 	if err != nil {
 		return nil, err
 	}

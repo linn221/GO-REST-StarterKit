@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"linn221/shop/models"
-	"linn221/shop/utils"
 	"net/http"
 
 	"gorm.io/gorm"
@@ -13,21 +12,11 @@ type NewPassword struct {
 	NewPassword string `json:"new_password" validate:"required,max=255,min=8"`
 }
 
-func ChangePassword(db *gorm.DB) http.HandlerFunc {
+func ChangePassword(userService *models.UserService) http.HandlerFunc {
 	return InputHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession, input *NewPassword) error {
-		var user models.User
-		if err := db.WithContext(r.Context()).First(&user, session.UserId).Error; err != nil {
-			return err
-		}
 
-		if err := utils.ComparePassword(user.Password, input.OldPassword); err != nil {
-			return respondClientError(w, "passwords do not match")
-		}
-		hashed, err := utils.HashPassword(input.NewPassword)
+		_, err := userService.ChangePassword(r.Context(), session.UserId, input.OldPassword, input.NewPassword)
 		if err != nil {
-			return err
-		}
-		if err := db.Model(&user).UpdateColumn("password", hashed).Error; err != nil {
 			return err
 		}
 		respondNoContent(w)

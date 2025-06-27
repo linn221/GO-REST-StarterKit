@@ -4,8 +4,6 @@ import (
 	"linn221/shop/models"
 	"linn221/shop/services"
 	"net/http"
-
-	"gorm.io/gorm"
 )
 
 type LoginInfo struct {
@@ -40,7 +38,7 @@ func Login(userService *models.UserService, cache services.CacheService) http.Ha
 		})
 	}
 }
-func Logout(db *gorm.DB, cache services.CacheService) http.HandlerFunc {
+func Logout(cache services.CacheService) http.HandlerFunc {
 	return DefaultHandler(func(w http.ResponseWriter, r *http.Request, session *DefaultSession) error {
 		token := r.Header.Get("Token")
 		if err := services.RemoveSession(token, cache); err != nil {
