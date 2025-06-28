@@ -49,7 +49,7 @@ func NewCategoryService(db *gorm.DB, cache services.CacheService, itemService *I
 
 	cleanRelatedCache := func(ctx context.Context, id int, shopId string) error {
 		var relatedItemIds []int
-		if err := db.WithContext(ctx).Model(&Item{}).Where("unit_id = ?", id).Pluck("id", &relatedItemIds).Error; err != nil {
+		if err := db.WithContext(ctx).Model(&Item{}).Where("category_id = ?", id).Pluck("id", &relatedItemIds).Error; err != nil {
 			return err
 		}
 		for _, itemId := range relatedItemIds {
